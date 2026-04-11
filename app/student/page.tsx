@@ -7,7 +7,7 @@ import {
   ShieldCheck, User, Briefcase, Plus, Search, 
   LogOut, Activity, X, CheckCircle2, Loader2, ChevronRight, 
   FileText, Globe, Book, Layers, 
-  Link, Send, GraduationCap, Mail, Code2, ArrowUpCircle, ChevronDown, ExternalLink
+  Link, Send, GraduationCap, Mail, Code2, ArrowUpCircle, ChevronDown, ExternalLink, Trash2
 } from 'lucide-react';
 
 export default function StudentHub() {
@@ -17,7 +17,6 @@ export default function StudentHub() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   
-  // 🔍 NEW STATES
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [profile, setProfile] = useState<any>(null);
   const [stats, setStats] = useState({ pubs: 0, projs: 0 });
@@ -39,7 +38,7 @@ export default function StudentHub() {
       if (!user) return;
       setProfile(user);
 
-      // 🛠️ ROBUST FETCH: Query by student_id OR student_name to ensure visibility
+      // ROBUST FETCH: ID or Name fallback
       const { data: pubs } = await supabase.from('publications')
         .select('*')
         .or(`student_id.eq.${user.user_id},student_name.eq.${user.name}`);
@@ -55,7 +54,7 @@ export default function StudentHub() {
 
       setHistory(combined);
       setStats({ pubs: pubs?.length || 0, projs: projs?.length || 0 });
-    } catch (e) { console.error("Sync Failure:", e); }
+    } catch (e) { console.error("ONE Sync Error:", e); }
     setLoading(false);
   }
 
@@ -73,7 +72,7 @@ export default function StudentHub() {
 
     if (!error) {
       setShowVault(false);
-      await fetchScholarSystem(); // Immediate Refresh
+      await fetchScholarSystem();
       setPubForm({ title: '', mentor_name: '', mentor_email: '', associated_project: '', drive_link: '', summary: '', details: '', pub_type: 'journal' });
       setProjForm({ title: '', description: '', mentor_name: '', mentor_email: '', doc_link: '', github_link: '', notes: '', category: 'ongoing' });
     } else {
@@ -82,7 +81,7 @@ export default function StudentHub() {
     setSubmitting(false);
   };
 
-  if (loading) return <div className="min-h-screen bg-[#09090B] flex items-center justify-center text-emerald-500 font-black text-2xl animate-pulse italic uppercase tracking-widest">Accessing Identity...</div>;
+  if (loading) return <div className="min-h-screen bg-[#09090B] flex items-center justify-center text-emerald-500 font-black text-2xl animate-pulse italic uppercase tracking-widest">Accessing ONE...</div>;
 
   return (
     <div className="flex min-h-screen bg-[#09090B] text-[#FAFAFA] font-sans selection:bg-emerald-500/30 overflow-hidden">
@@ -130,7 +129,7 @@ export default function StudentHub() {
         <header className="flex flex-col xl:flex-row justify-between items-start xl:items-center mb-12 gap-10">
           <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
             <h1 className="text-8xl font-black tracking-tighter italic text-white leading-none">Scholar.</h1>
-            <p className="text-zinc-500 text-xl font-medium mt-3 uppercase tracking-[0.3em] italic">ONE Integrated Repository</p>
+            <p className="text-zinc-500 text-xl font-medium mt-3 uppercase tracking-[0.3em] italic underline decoration-emerald-500/20 underline-offset-8">ONE Integrated Repository</p>
           </motion.div>
           
           <button 
@@ -151,7 +150,7 @@ export default function StudentHub() {
             >
               <div className="flex bg-black/40 p-2 rounded-[24px] w-fit mb-10 border border-white/5">
                 <button onClick={() => setActiveTrack('publication')} className={`px-10 py-3 rounded-[18px] font-black text-xs uppercase transition-all ${activeTrack === 'publication' ? 'bg-emerald-600 text-white' : 'text-zinc-500'}`}>Publication</button>
-                <button onClick={() => setActiveTrack('project')} className={`px-10 py-3 rounded-[18px] font-black text-xs uppercase transition-all ${activeTrack === 'project' ? 'bg-blue-600 text-white' : 'text-zinc-500'}`}>Project</button>
+                <button onClick={() => setActiveTrack('project')} className={`px-10 py-3 rounded-[18px] font-black text-xs uppercase transition-all ${activeTrack === 'project' ? 'bg-blue-600 text-white' : 'text-zinc-500'}`}>Project Track</button>
               </div>
 
               <form onSubmit={handleSubmit} className="space-y-12">
@@ -174,7 +173,7 @@ export default function StudentHub() {
                         </select>
                       </div>
                       <FormArea label="Executive Summary" placeholder="..." onChange={(e: any) => setPubForm({...pubForm, summary: e.target.value})} value={pubForm.summary} />
-                      <FormArea label="Technical Deep-Dive" placeholder="..." onChange={(e: any) => setPubForm({...pubForm, details: e.target.value})} value={pubForm.details} />
+                      <FormArea label="Deep Narrative" placeholder="..." onChange={(e: any) => setPubForm({...pubForm, details: e.target.value})} value={pubForm.details} />
                     </div>
                   </div>
                 ) : (
@@ -188,9 +187,9 @@ export default function StudentHub() {
                     <FormInput label="Related Document" placeholder="..." onChange={(e: any) => setProjForm({...projForm, doc_link: e.target.value})} value={projForm.doc_link} />
                     <div className="md:col-span-2 space-y-10">
                       <div className="space-y-3">
-                        <label className="text-[10px] font-black text-zinc-600 uppercase tracking-[0.5em] ml-6 italic">Classification</label>
+                        <label className="text-[10px] font-black text-zinc-600 uppercase tracking-[0.5em] ml-6 italic">Execution Classification</label>
                         <select className="w-full bg-[#1A1A1E] border border-white/10 rounded-[30px] py-6 px-10 text-xl text-white outline-none focus:border-blue-500 appearance-none font-bold italic shadow-inner" onChange={(e: any) => setProjForm({...projForm, category: e.target.value})} value={projForm.category}>
-                          <option value="ongoing">Ongoing Projects</option>
+                          <option value="ongoing">Ongoing Real-Time</option>
                           <option value="course">Course Project</option>
                           <option value="papers">Papers Based</option>
                         </select>
@@ -200,7 +199,7 @@ export default function StudentHub() {
                     </div>
                   </div>
                 )}
-                <button type="submit" disabled={submitting} className={`w-full py-8 rounded-[40px] font-black text-2xl text-white mt-6 shadow-2xl transition-all ${activeTrack === 'publication' ? 'bg-emerald-600 shadow-emerald-500/20' : 'bg-blue-600 shadow-blue-500/20'}`}>
+                <button type="submit" disabled={submitting} className={`w-full py-8 rounded-[40px] font-black text-2xl text-white mt-6 shadow-2xl transition-all active:scale-95 flex items-center justify-center gap-4 ${activeTrack === 'publication' ? 'bg-emerald-600 hover:bg-emerald-500' : 'bg-blue-600 hover:bg-blue-500'}`}>
                   {submitting ? <Loader2 className="animate-spin" /> : <Send size={24} strokeWidth={3} />}
                   <span>Push to ONE Repository</span>
                 </button>
@@ -209,7 +208,7 @@ export default function StudentHub() {
           )}
         </AnimatePresence>
 
-        {/* 📜 IDENTITY HISTORY (DROPDOWN INTEGRATED) */}
+        {/* 📜 IDENTITY HISTORY */}
         <div className="space-y-10 pb-20">
           <div className="flex items-center justify-between px-6">
              <h3 className="text-4xl font-black text-white italic uppercase tracking-tighter">Identity History.</h3>
@@ -220,6 +219,7 @@ export default function StudentHub() {
             <div className="py-24 text-center border-2 border-dashed border-white/5 rounded-[60px] bg-white/[0.01]">
                <Activity className="mx-auto text-zinc-800 mb-6" size={64} />
                <p className="text-zinc-600 font-black uppercase text-2xl italic tracking-[0.2em]">Zero Historical Data Found.</p>
+               <p className="text-zinc-800 text-sm font-bold uppercase mt-3">Click Initiate Research to get started.</p>
             </div>
           ) : (
             <div className="grid grid-cols-1 gap-6">
@@ -249,26 +249,26 @@ export default function StudentHub() {
                       <ChevronDown className={`text-zinc-700 transition-all duration-500 ${expandedId === item.id ? 'rotate-180 text-emerald-500' : ''}`} size={32} />
                     </div>
 
-                    {/* 📥 DEEP-DIVE DETAILS */}
+                    {/* DEEP DROP DOWN VIEW */}
                     <AnimatePresence>
                       {expandedId === item.id && (
                         <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="bg-black/20 border-t border-white/5">
                           <div className="p-12 grid grid-cols-1 md:grid-cols-2 gap-12">
                             <div className="space-y-8">
-                               <DetailItem label="Full Narrative / Summary" value={item.summary || item.description} />
-                               <DetailItem label="Assigned Mentor" value={`${item.mentor_name} (${item.mentor_email})`} />
-                               {item.notes && <DetailItem label="Development Notes" value={item.notes} />}
+                               <HistoryDetail label="Executive Narrative" value={item.summary || item.description} />
+                               <HistoryDetail label="Assigned Mentor" value={`${item.mentor_name} (${item.mentor_email})`} />
+                               {item.notes && <HistoryDetail label="Technical Notes" value={item.notes} />}
                             </div>
                             <div className="space-y-8">
                                <div className="bg-white/5 p-8 rounded-3xl border border-white/5">
-                                  <p className="text-[10px] font-black uppercase text-zinc-600 mb-6 tracking-widest italic text-center">Attached Artifacts</p>
+                                  <p className="text-[10px] font-black uppercase text-zinc-600 mb-6 tracking-widest italic text-center">Repository Assets</p>
                                   <div className="flex flex-wrap justify-center gap-4">
                                      {item.drive_link && <ArtifactLink label="Cloud Drive" url={item.drive_link} icon={<Globe size={14}/>} />}
-                                     {item.github_link && <ArtifactLink label="Source Repo" url={item.github_link} icon={<Code2 size={14}/>} />}
-                                     {item.doc_link && <ArtifactLink label="Documentation" url={item.doc_link} icon={<FileText size={14}/>} />}
+                                     {item.github_link && <ArtifactLink label="Git Source" url={item.github_link} icon={<Code2 size={14}/>} />}
+                                     {item.doc_link && <ArtifactLink label="Project Doc" url={item.doc_link} icon={<FileText size={14}/>} />}
                                   </div>
                                </div>
-                               {item.associated_project && <div className="bg-emerald-500/5 p-6 rounded-3xl border border-emerald-500/10 text-center"><p className="text-[9px] font-black uppercase text-emerald-600 mb-1">Parent Identity</p><p className="text-lg font-bold text-white italic">{item.associated_project}</p></div>}
+                               {item.associated_project && <div className="bg-emerald-500/5 p-6 rounded-3xl border border-emerald-500/10 text-center"><p className="text-[9px] font-black uppercase text-emerald-600 mb-1 tracking-widest">Linked Identity</p><p className="text-lg font-bold text-white italic">{item.associated_project}</p></div>}
                             </div>
                           </div>
                         </motion.div>
@@ -285,11 +285,11 @@ export default function StudentHub() {
 }
 
 // ATOMS
-function DetailItem({ label, value }: any) {
+function HistoryDetail({ label, value }: any) {
   return (
     <div className="space-y-3">
        <p className="text-[10px] font-black uppercase text-zinc-700 tracking-[0.2em] italic ml-4">{label}</p>
-       <div className="bg-white/5 border border-white/10 rounded-3xl p-6 text-sm italic text-zinc-400 leading-relaxed shadow-inner">{value || "No data logged."}</div>
+       <div className="bg-white/5 border border-white/10 rounded-3xl p-6 text-sm italic text-zinc-400 leading-relaxed shadow-inner">{value || "No detailed log found."}</div>
     </div>
   );
 }
@@ -304,7 +304,10 @@ function ProfileItem({ label, value, icon }: any) {
   return (
     <div className="bg-white/[0.02] border border-white/5 p-6 rounded-[32px] flex items-center gap-5 group hover:bg-white/[0.05] transition-all">
       <div className="w-12 h-12 rounded-2xl bg-zinc-900 flex items-center justify-center text-zinc-600 group-hover:text-emerald-500 transition-colors shadow-inner">{icon}</div>
-      <div className="min-w-0"><p className="text-[9px] font-black uppercase text-zinc-700 mb-1.5 tracking-widest leading-none">{label}</p><p className="text-base font-bold text-white truncate italic">{value || '...'}</p></div>
+      <div className="min-w-0">
+        <p className="text-[9px] font-black uppercase text-zinc-700 tracking-widest leading-none mb-1.5">{label}</p>
+        <p className="text-base font-bold text-white truncate italic">{value || 'Syncing...'}</p>
+      </div>
     </div>
   );
 }

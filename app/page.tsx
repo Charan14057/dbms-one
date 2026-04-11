@@ -11,25 +11,23 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const router = useRouter();
 
-  // 🛡️ GUARD 1: Prevent automatic redirect loops on mount
+  // 🛡️ GUARD: Clear stale sessions on mount
   useEffect(() => {
-    // If the page is looping, clearing this helps reset the router state
     const currentRole = localStorage.getItem('dbms_user_role');
-    if (currentRole && window.location.pathname === '/login') {
-       // Only redirect if we are sure we aren't already looping
-       console.log("Session detected, standing by...");
+    if (currentRole) {
+       console.log("Existing handshake detected. Standing by for re-authentication.");
     }
   }, []);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (loading) return; // Prevent double-clicks
+    if (loading) return; 
     
     setLoading(true);
     const cleanEmail = email.trim().toLowerCase();
 
     try {
-      // 🔍 STEP 1: Query the Oracle Registry
+      // 🔍 STEP 1: Query the ONE Registry
       const { data: userRecord, error } = await supabase
         .from('users')
         .select('*')
@@ -37,22 +35,20 @@ export default function LoginPage() {
         .single();
 
       if (error || !userRecord) {
-        alert("ACCESS DENIED: Identity not provisioned in Oracle.");
+        alert("ACCESS DENIED: Identity not provisioned in ONE.");
         setLoading(false);
         return;
       }
 
-      // 🔐 STEP 2: REDIRECTION MATRIX LOGIC
+      // 🔐 STEP 2: REDIRECTION MATRIX
       if (password === userRecord.temp_pass) {
         
-        // 💾 CRITICAL: Save data BEFORE triggering navigation
+        // 💾 Save handshake data
         localStorage.setItem('dbms_user_email', cleanEmail);
         localStorage.setItem('dbms_user_role', userRecord.role);
         localStorage.setItem('dbms_user_name', userRecord.name);
 
-        // 🚀 STEP 3: REFINED ROUTING
-        // We use window.location.href for the first login to "Hard Reset" the 
-        // browser state and break any Next.js Router cache loops.
+        // 🚀 Refined Routing
         const targetPath = userRecord.role === 'admin' ? '/admin' : 
                            userRecord.role === 'faculty' ? '/faculty' : '/student';
         
@@ -64,7 +60,7 @@ export default function LoginPage() {
       }
     } catch (err) {
       console.error(err);
-      alert("SYSTEM ERROR: Connectivity to Oracle lost.");
+      alert("SYSTEM ERROR: Connectivity to ONE lost.");
       setLoading(false);
     }
   };
@@ -91,7 +87,7 @@ export default function LoginPage() {
           </h1>
           <div className="flex items-center gap-2 mt-4">
              <div className="h-[1px] w-8 bg-indigo-500/30" />
-             <p className="text-zinc-500 text-xs font-black tracking-[0.4em] uppercase italic">Oracle Gateway</p>
+             <p className="text-zinc-500 text-xs font-black tracking-[0.4em] uppercase italic">System Gateway</p>
              <div className="h-[1px] w-8 bg-indigo-500/30" />
           </div>
         </div>
@@ -103,13 +99,13 @@ export default function LoginPage() {
           <form onSubmit={handleLogin} className="space-y-10">
             {/* EMAIL FIELD */}
             <div className="space-y-3">
-              <label className="text-[10px] font-black text-zinc-500 uppercase tracking-[0.5em] ml-6">Credential ID</label>
+              <label className="text-[10px] font-black text-zinc-500 uppercase tracking-[0.5em] ml-6 italic">Credential ID</label>
               <div className="relative group">
                 <Mail className="absolute left-8 top-1/2 -translate-y-1/2 text-zinc-700 group-focus-within:text-indigo-500 transition-colors" size={20} />
                 <input 
                   type="email" 
                   placeholder="name@university.edu" 
-                  className="w-full bg-white/5 border border-white/10 rounded-[30px] py-6 pl-16 pr-10 text-xl text-white outline-none focus:border-indigo-500/50 transition-all placeholder:text-zinc-800 shadow-inner" 
+                  className="w-full bg-white/5 border border-white/10 rounded-[30px] py-6 pl-16 pr-10 text-xl text-white outline-none focus:border-indigo-500/50 transition-all placeholder:text-zinc-800 shadow-inner italic" 
                   onChange={(e) => setEmail(e.target.value)} 
                   value={email}
                   required 
@@ -119,7 +115,7 @@ export default function LoginPage() {
 
             {/* PASSWORD FIELD */}
             <div className="space-y-3">
-              <label className="text-[10px] font-black text-zinc-500 uppercase tracking-[0.5em] ml-6">Access Key</label>
+              <label className="text-[10px] font-black text-zinc-500 uppercase tracking-[0.5em] ml-6 italic">Access Key</label>
               <div className="relative group">
                 <Lock className="absolute left-8 top-1/2 -translate-y-1/2 text-zinc-700 group-focus-within:text-indigo-500 transition-colors" size={20} />
                 <input 
@@ -151,18 +147,18 @@ export default function LoginPage() {
 
           {/* SYSTEM STATUS */}
           <div className="mt-12 pt-8 border-t border-white/5 flex justify-between items-center px-4">
-             <div className="flex items-center gap-2 text-[9px] font-black text-zinc-700 uppercase tracking-widest">
+             <div className="flex items-center gap-2 text-[9px] font-black text-zinc-700 uppercase tracking-widest italic">
                 <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse" />
-                Database Online
+                Syncing with ONE
              </div>
-             <p className="text-[9px] text-zinc-700 font-black uppercase tracking-widest">Authorized Personnel Only</p>
+             <p className="text-[9px] text-zinc-700 font-black uppercase tracking-widest italic">Authorized Personnel Only</p>
           </div>
         </div>
       </motion.div>
 
       {/* FOOTER DECOR */}
       <div className="absolute bottom-10 left-1/2 -translate-x-1/2 opacity-5 pointer-events-none">
-        <h2 className="text-[15vw] font-black text-white italic leading-none select-none">ORACLE</h2>
+        <h2 className="text-[15vw] font-black text-white italic leading-none select-none">ONE</h2>
       </div>
     </main>
   );
