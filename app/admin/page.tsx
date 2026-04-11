@@ -7,7 +7,8 @@ import {
   ShieldCheck, Users, Briefcase, Plus, Search, 
   LogOut, Activity, X, CheckCircle2, Loader2, ChevronRight, 
   Trash2, ArrowLeft, UserPlus, Mail, Globe, Database, 
-  Book, FileText, LayoutGrid, Layers, Clock, ChevronDown, ExternalLink, Link
+  Book, FileText, LayoutGrid, Layers, Clock, ChevronDown, 
+  ExternalLink, Link, Code2, Lock // 🛠️ ALL ICONS SYNCED FOR VERCEL
 } from 'lucide-react';
 
 export default function AdminDashboard() {
@@ -19,9 +20,13 @@ export default function AdminDashboard() {
   const [creationMode, setCreationMode] = useState<'student' | 'faculty'>('student');
   const [searchTerm, setSearchTerm] = useState('');
   
-  // 🔍 NEW STATE: TRACKS EXPANDED DROPDOWN
-  const [expandedId, setExpandedId] = useState<string | null>(null);
+  // 🛡️ SECURITY & UI STATES
+  const [showPassModal, setShowPassModal] = useState(false);
+  const [passData, setPassData] = useState({ new: '', confirm: '' });
+  const [updatingPass, setUpdatingPass] = useState(false);
+  const [adminProfile, setAdminProfile] = useState<any>(null);
 
+  const [expandedId, setExpandedId] = useState<string | null>(null);
   const [stats, setStats] = useState({ 
     scholars: 0, mentors: 0, journals: 0, patents: 0, 
     confs: 0, ongoing: 0, course: 0, papers: 0 
@@ -35,7 +40,15 @@ export default function AdminDashboard() {
 
   async function fetchSystemVolume() {
     setLoading(true);
+    const email = localStorage.getItem('dbms_user_email');
+    if (!email) { router.replace('/'); return; }
+
     try {
+      // 1. Resolve Admin Identity for Security Handshake
+      const { data: admin } = await supabase.from('users').select('*').eq('email', email).single();
+      setAdminProfile(admin);
+
+      // 2. Fetch Global Registry
       const { data: u } = await supabase.from('users').select('*').order('name');
       const { data: pubs } = await supabase.from('publications').select('*');
       const { data: projs } = await supabase.from('projects').select('*');
@@ -61,6 +74,22 @@ export default function AdminDashboard() {
     } catch (e) { console.error(e); }
     setLoading(false);
   }
+
+  // 🔐 SECURITY HANDSHAKE
+  const handlePasswordUpdate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (passData.new !== passData.confirm) return alert("Keys do not match.");
+    setUpdatingPass(true);
+    const { error } = await supabase.from('users').update({ temp_pass: passData.new }).eq('email', adminProfile.email);
+    if (!error) {
+      alert("SUCCESS: ROOT Access Key Updated.");
+      setShowPassModal(false);
+      setPassData({ new: '', confirm: '' });
+    } else {
+      alert("ERROR: Security override failed.");
+    }
+    setUpdatingPass(false);
+  };
 
   const handleDelete = async (table: string, id: string) => {
     if (!confirm(`SYSTEM ACTION: Permanently remove this entry from ONE?`)) return;
@@ -98,9 +127,17 @@ export default function AdminDashboard() {
           <span className="text-2xl font-black tracking-tighter uppercase leading-none italic">DBMS<br/><span className="text-emerald-500">ONE</span></span>
         </div>
         
-        <div className="space-y-2 flex-1">
+        <div className="space-y-4 flex-1">
           <SidebarBtn active={activeTab === 'uploads'} onClick={() => setActiveTab('uploads')} icon={<Globe size={22}/>} label="Universal" />
           <SidebarBtn active={activeTab === 'registry'} onClick={() => setActiveTab('registry')} icon={<Briefcase size={22}/>} label="Registry" />
+          
+          {/* 🔐 NEW SECURITY TRIGGER */}
+          <button 
+            onClick={() => setShowPassModal(true)}
+            className="w-full flex items-center gap-5 p-6 rounded-[32px] transition-all font-bold text-xl text-zinc-500 hover:bg-white/5 hover:text-white"
+          >
+            <Lock size={22} /> <span className="tracking-tight uppercase font-black italic">Security</span>
+          </button>
         </div>
 
         <button onClick={() => { localStorage.clear(); router.replace('/'); }} className="flex items-center gap-4 p-5 text-zinc-500 hover:text-red-400 font-bold mt-auto group transition-all">
@@ -151,7 +188,6 @@ export default function AdminDashboard() {
               <div className="space-y-4">
                 {submissions.filter(i => (i.title + i.student_name + i.mentor_name).toLowerCase().includes(searchTerm.toLowerCase())).map((item, i) => (
                     <div key={i} className="bg-white/[0.01] border border-white/5 rounded-[32px] overflow-hidden group">
-                      {/* HEADER ROW (CLICKABLE) */}
                       <div 
                         onClick={() => setExpandedId(expandedId === item.id ? null : item.id)}
                         className="p-8 flex justify-between items-center cursor-pointer hover:bg-white/[0.03] transition-all"
@@ -177,15 +213,9 @@ export default function AdminDashboard() {
                         </div>
                       </div>
 
-                      {/* 📥 DEEP-DIVE DROPDOWN VIEW */}
                       <AnimatePresence>
                         {expandedId === item.id && (
-                          <motion.div 
-                            initial={{ height: 0, opacity: 0 }} 
-                            animate={{ height: 'auto', opacity: 1 }} 
-                            exit={{ height: 0, opacity: 0 }}
-                            className="bg-black/20 border-t border-white/5"
-                          >
+                          <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="bg-black/20 border-t border-white/5">
                             <div className="p-10 grid grid-cols-1 md:grid-cols-2 gap-10">
                               <div className="space-y-6">
                                 <DetailItem label="Full Narrative / Summary" value={item.summary || item.description} />
@@ -214,7 +244,6 @@ export default function AdminDashboard() {
                 ))}
               </div>
             ) : (
-              /* REGISTRY TAB (Unchanged per your UI) */
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {users.filter(u => u.role !== 'admin' && (u.name + u.email).toLowerCase().includes(searchTerm.toLowerCase())).map((u, i) => (
                   <div key={i} className="bg-white/[0.02] border border-white/5 p-8 rounded-[40px] group transition-all hover:border-emerald-500/20">
@@ -246,9 +275,6 @@ export default function AdminDashboard() {
                                  <button onClick={() => handleDelete(entry.sys_cat === 'publication' ? 'publications' : 'projects', entry.id)} className="opacity-0 group-hover/item:opacity-100 text-red-500/50 hover:text-red-500 transition-all"><Trash2 size={14}/></button>
                               </div>
                            ))}
-                           {submissions.filter(s => u.role === 'student' ? s.student_id === u.user_id : s.mentor_email === u.email).length === 0 && (
-                             <p className="text-center py-4 text-zinc-700 font-bold uppercase text-[9px] italic">Empty Volume Record</p>
-                           )}
                         </div>
                      </details>
                   </div>
@@ -258,7 +284,26 @@ export default function AdminDashboard() {
           </div>
         </div>
 
-        {/* MODAL (Unchanged per your UI) */}
+        {/* 🔐 SECURITY OVERRIDE MODAL */}
+        <AnimatePresence>
+          {showPassModal && (
+            <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 backdrop-blur-3xl bg-black/80">
+              <motion.div initial={{ scale: 0.95 }} animate={{ scale: 1 }} exit={{ scale: 0.95 }} className="bg-[#121214] border border-white/10 w-full max-w-xl rounded-[60px] p-12 shadow-2xl relative">
+                <button onClick={() => setShowPassModal(false)} className="absolute top-8 right-8 text-zinc-600 hover:text-white transition-all"><X size={32}/></button>
+                <h2 className="text-5xl font-black text-white mb-10 italic uppercase tracking-tighter">Reset Key.</h2>
+                <form onSubmit={handlePasswordUpdate} className="space-y-8">
+                  <Input label="New ROOT Key" placeholder="••••••••" type="password" onChange={(e:any) => setPassData({...passData, new: e.target.value})} icon={<Lock size={18}/>} />
+                  <Input label="Confirm ROOT Key" placeholder="••••••••" type="password" onChange={(e:any) => setPassData({...passData, confirm: e.target.value})} icon={<CheckCircle2 size={18}/>} />
+                  <button type="submit" disabled={updatingPass} className="w-full py-8 bg-emerald-600 text-white rounded-[40px] font-black text-2xl shadow-2xl transition-all active:scale-95 flex items-center justify-center gap-4">
+                    {updatingPass ? <Loader2 className="animate-spin" /> : 'Provision New Key'}
+                  </button>
+                </form>
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>
+
+        {/* REGISTRY MODAL (Unchanged per your UI) */}
         <AnimatePresence>
           {showModal && (
             <div className="fixed inset-0 z-50 flex items-center justify-center p-6 backdrop-blur-3xl bg-black/80">
@@ -280,7 +325,7 @@ export default function AdminDashboard() {
   );
 }
 
-// ATOMS (New UI Components)
+// ATOMS (Corrected Imports)
 function DetailItem({ label, value }: { label: string, value: string }) {
   return (
     <div className="space-y-2">
@@ -309,7 +354,6 @@ function MiniDataBox({ label, val }: any) {
   );
 }
 
-// PRE-EXISTING ATOMS
 function SidebarBtn({ icon, label, active, onClick }: any) {
   return (<button onClick={onClick} className={`w-full flex items-center justify-between p-6 rounded-[32px] transition-all font-bold text-xl group ${active ? 'bg-white text-[#09090B] shadow-xl' : 'text-zinc-500 hover:bg-white/5 hover:text-white'}`}><div className="flex items-center gap-5"><span>{icon}</span><span className="tracking-tight uppercase font-black italic">{label}</span></div>{active && <ChevronRight size={18} />}</button>);
 }
@@ -324,6 +368,6 @@ function StatBox({ label, value, color }: any) {
   );
 }
 
-function Input({ label, icon, onChange }: any) {
-  return (<div className="space-y-3"><label className="text-[10px] font-black text-zinc-600 uppercase tracking-[0.3em] ml-4 flex items-center gap-2">{icon} {label}</label><input required className="w-full bg-white/5 border border-white/10 rounded-[30px] py-5 px-10 text-xl text-white outline-none focus:border-white/20 shadow-inner placeholder:text-zinc-900" placeholder="..." onChange={onChange} /></div>);
+function Input({ label, icon, onChange, type = "text" }: any) {
+  return (<div className="space-y-3"><label className="text-[10px] font-black text-zinc-600 uppercase tracking-[0.3em] ml-4 flex items-center gap-2 italic">{icon} {label}</label><input required type={type} className="w-full bg-white/5 border border-white/10 rounded-[30px] py-5 px-10 text-xl text-white outline-none focus:border-white/20 shadow-inner placeholder:text-zinc-900 italic" placeholder="..." onChange={onChange} /></div>);
 }
