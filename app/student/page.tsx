@@ -7,7 +7,7 @@ import {
   ShieldCheck, User, Briefcase, Plus, Search, 
   LogOut, Activity, X, CheckCircle2, Loader2, ChevronRight, 
   FileText, Globe, Book, Layers, 
-  Link, Send, GraduationCap, Mail, Code2, ArrowUpCircle, ChevronDown, ExternalLink, Lock
+  Link, Send, GraduationCap, Mail, Code2, ArrowUpCircle, ChevronDown, ExternalLink, Lock,
 } from 'lucide-react';
 
 export default function StudentHub() {
@@ -220,7 +220,7 @@ export default function StudentHub() {
                         </select>
                       </div>
                       <FormArea label="Project Description" placeholder="..." onChange={(e: any) => setProjForm({...projForm, description: e.target.value})} value={projForm.description} />
-                      <FormArea label="Technical Logs" placeholder="..." onChange={(e: any) => setProjForm({...projForm, notes: e.target.value})} value={projData.notes} />
+                      <FormArea label="Technical Logs" placeholder="..." onChange={(e: any) => setProjForm({...projForm, notes: e.target.value})} value={projForm.notes} />
                     </div>
                   </div>
                 )}

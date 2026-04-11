@@ -7,7 +7,7 @@ import {
   ShieldCheck, User, Briefcase, Search, 
   LogOut, Activity, ChevronDown, 
   FileText, Globe, Book, Layers, 
-  Link, GraduationCap, Mail, Code2, ExternalLink, Lock, CheckCircle2, Loader2
+  Link, GraduationCap, Mail, Code2, ExternalLink, Lock, CheckCircle2, Loader2,X
 } from 'lucide-react';
 
 export default function MentorHub() {
