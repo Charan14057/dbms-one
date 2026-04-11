@@ -7,7 +7,7 @@ import {
   ShieldCheck, User, Briefcase, Plus, Search, 
   LogOut, Activity, X, CheckCircle2, Loader2, ChevronRight, 
   FileText, Globe, Book, Layers, 
-  Link, Send, GraduationCap, Mail, Code2, ArrowUpCircle, ChevronDown, ExternalLink, Lock, Menu // Added Menu icon
+  Link, Send, GraduationCap, Mail, Code2, ArrowUpCircle, ChevronDown, ExternalLink, Lock, Menu 
 } from 'lucide-react';
 
 export default function StudentHub() {
@@ -17,10 +17,8 @@ export default function StudentHub() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   
-  // 📱 MOBILE STATE
+  // 📱 MOBILE & UI STATES
   const [showMobileSidebar, setShowMobileSidebar] = useState(false);
-
-  // 🛡️ SECURITY & UI STATES
   const [showPassModal, setShowPassModal] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [profile, setProfile] = useState<any>(null);
@@ -76,16 +74,13 @@ export default function StudentHub() {
   return (
     <div className="flex flex-col lg:flex-row min-h-screen bg-[#09090B] text-[#FAFAFA] font-sans selection:bg-emerald-500/30 overflow-x-hidden">
       
-      {/* 📱 MOBILE HEADER (Surgical Addition) */}
+      {/* 📱 MOBILE HEADER */}
       <div className="lg:hidden flex items-center justify-between p-6 border-b border-white/5 bg-[#0C0C0E] sticky top-0 z-[60]">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-emerald-600 rounded-xl flex items-center justify-center shadow-lg"><ShieldCheck size={20} className="text-white" /></div>
-          <span className="text-xl font-black tracking-tighter uppercase italic">DBMS<span className="text-emerald-500">ONE</span></span>
-        </div>
+        <div className="flex items-center gap-3"><div className="w-10 h-10 bg-emerald-600 rounded-xl flex items-center justify-center shadow-lg"><ShieldCheck size={20} className="text-white" /></div><span className="text-xl font-black tracking-tighter uppercase italic">DBMS<span className="text-emerald-500">ONE</span></span></div>
         <button onClick={() => setShowMobileSidebar(true)} className="p-3 bg-white/5 rounded-xl text-zinc-400"><Menu size={24} /></button>
       </div>
 
-      {/* 🚀 SIDEBAR (Drawer logic integrated) */}
+      {/* 🚀 SIDEBAR (Drawer logic) */}
       <AnimatePresence>
         {(showMobileSidebar || (typeof window !== 'undefined' && window.innerWidth >= 1024)) && (
           <motion.nav 
@@ -125,7 +120,6 @@ export default function StudentHub() {
           <button onClick={() => setShowVault(!showVault)} className={`${showVault ? 'bg-zinc-800 text-zinc-400' : 'bg-white text-black'} w-full lg:w-auto px-10 py-5 rounded-[32px] font-black text-xl shadow-2xl transition-all active:scale-95 flex items-center justify-center gap-3`}>{showVault ? <ArrowUpCircle size={24} /> : <Plus size={24} strokeWidth={3} />}{showVault ? 'Dismiss Vault' : 'Initiate Research'}</button>
         </header>
 
-        {/* 📥 VAULT */}
         <AnimatePresence>
           {showVault && (
             <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="bg-[#121214] border border-white/5 rounded-[40px] lg:rounded-[60px] p-8 lg:p-12 mb-16 shadow-3xl overflow-hidden">
@@ -165,7 +159,6 @@ export default function StudentHub() {
           )}
         </AnimatePresence>
 
-        {/* 📜 IDENTITY HISTORY */}
         <div className="space-y-10 pb-20">
           <div className="flex items-center justify-between px-2 lg:px-6"><h3 className="text-3xl lg:text-4xl font-black text-white italic uppercase tracking-tighter">Identity History.</h3><div className="h-[1px] flex-1 mx-4 lg:mx-12 bg-white/5" /></div>
           {history.length === 0 ? (
@@ -205,7 +198,6 @@ export default function StudentHub() {
           )}
         </div>
 
-        {/* 🔐 SECURITY MODAL */}
         <AnimatePresence>
           {showPassModal && (
             <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 backdrop-blur-3xl bg-black/80">
@@ -225,9 +217,8 @@ export default function StudentHub() {
   );
 }
 
-// ATOMS
 function HistoryDetail({ label, value }: any) { return (<div className="space-y-3"><p className="text-[9px] lg:text-[10px] font-black uppercase text-zinc-700 tracking-[0.2em] italic ml-4">{label}</p><div className="bg-white/5 border border-white/10 rounded-3xl p-6 text-xs lg:text-sm italic text-zinc-400 leading-relaxed shadow-inner">{value || "No data logged."}</div></div>); }
 function ArtifactLink({ label, url, icon }: any) { return (<a href={url} target="_blank" className="flex items-center gap-3 px-4 lg:px-6 py-3 bg-zinc-900 border border-white/5 rounded-2xl text-[8px] lg:text-[10px] font-black uppercase text-zinc-400 hover:bg-emerald-600 hover:text-white transition-all shadow-xl">{icon} {label} <ExternalLink size={12} className="opacity-50" /></a>); }
-function ProfileItem({ label, value, icon }: any) { return (<div className="bg-white/[0.02] border border-white/5 p-6 rounded-[32px] flex items-center gap-5 group hover:bg-white/[0.05] transition-all"><div className="w-10 h-10 lg:w-12 lg:h-12 rounded-2xl bg-zinc-900 flex items-center justify-center text-zinc-600 group-hover:text-emerald-500 transition-colors shadow-inner">{icon}</div><div className="min-w-0"><p className="text-[8px] lg:text-[9px] font-black uppercase text-zinc-700 mb-1.5 tracking-widest leading-none">{label}</p><p className="text-sm lg:text-base font-bold text-white truncate italic">{value || '...'}</p></div></div>); }
+function ProfileItem({ label, value, icon }: any) { return (<div className="bg-white/[0.02] border border-white/5 p-6 rounded-[32px] flex items-center gap-5 group hover:bg-white/[0.05] transition-all shadow-inner"><div className="w-10 h-10 lg:w-12 lg:h-12 rounded-2xl bg-zinc-900 flex items-center justify-center text-zinc-600 group-hover:text-emerald-500 transition-colors shadow-inner">{icon}</div><div className="min-w-0"><p className="text-[8px] lg:text-[9px] font-black uppercase text-zinc-700 mb-1.5 tracking-widest leading-none">{label}</p><p className="text-sm lg:text-base font-bold text-white truncate italic">{value || '...'}</p></div></div>); }
 function FormInput({ label, placeholder, onChange, value, icon, type = "text" }: any) { return (<div className="space-y-4"><label className="text-[9px] lg:text-[10px] font-black text-zinc-600 uppercase tracking-[0.5em] ml-6 lg:ml-8 flex items-center gap-2 italic">{icon} {label}</label><input required type={type} className="w-full bg-white/5 border border-white/10 rounded-[30px] lg:rounded-[35px] py-5 lg:py-7 px-8 lg:px-12 text-lg lg:text-2xl text-white outline-none focus:border-white/20 transition-all placeholder:text-zinc-900 shadow-inner italic" placeholder={placeholder} onChange={onChange} value={value} /></div>); }
 function FormArea({ label, placeholder, onChange, value }: any) { return (<div className="space-y-4"><label className="text-[9px] lg:text-[10px] font-black text-zinc-600 uppercase tracking-[0.5em] ml-6 lg:ml-8 italic">{label}</label><textarea required className="w-full bg-white/5 border border-white/10 rounded-[35px] lg:rounded-[45px] py-6 lg:py-8 px-8 lg:px-12 text-lg lg:text-2xl text-white outline-none focus:border-white/20 transition-all placeholder:text-zinc-900 shadow-inner italic" rows={4} placeholder={placeholder} onChange={onChange} value={value} /></div>); }
