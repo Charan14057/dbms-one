@@ -17,10 +17,11 @@ export default function AdminDashboard() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [showModal, setShowModal] = useState(false);
-  const [creationMode, setCreationMode] = useState<'student' | 'faculty'>('student');
-  const [searchTerm, setSearchTerm] = useState('');
   
-  // 📱 MOBILE & UI STATES
+  // 👥 DUAL ROLE STATE
+  const [creationMode, setCreationMode] = useState<'student' | 'faculty'>('student');
+  
+  const [searchTerm, setSearchTerm] = useState('');
   const [showMobileSidebar, setShowMobileSidebar] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [showPassModal, setShowPassModal] = useState(false);
@@ -58,7 +59,7 @@ export default function AdminDashboard() {
     if (passData.new !== passData.confirm) return alert("Keys do not match.");
     setUpdatingPass(true);
     const { error } = await supabase.from('users').update({ temp_pass: passData.new }).eq('email', adminProfile.email);
-    if (!error) { alert("SUCCESS: Access Key Secured."); setShowPassModal(false); }
+    if (!error) { alert("SUCCESS: ROOT Access Key Updated."); setShowPassModal(false); }
     setUpdatingPass(false);
   };
 
@@ -71,8 +72,19 @@ export default function AdminDashboard() {
   const handleProvision = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitting(true);
-    const { error } = await supabase.from('users').insert([{ ...formData, role: creationMode, temp_pass: 'WELCOME@123' }]);
-    if (!error) { setShowModal(false); setFormData({ name: '', email: '', dept: '' }); fetchSystemVolume(); }
+    const { error } = await supabase.from('users').insert([{ 
+      ...formData, 
+      role: creationMode, 
+      temp_pass: 'WELCOME@123',
+      email: formData.email.toLowerCase().trim() 
+    }]);
+    if (!error) { 
+      setShowModal(false); 
+      setFormData({ name: '', email: '', dept: '' }); 
+      fetchSystemVolume(); 
+    } else {
+      alert("Error: Identity already exists or system fault.");
+    }
     setSubmitting(false);
   };
 
@@ -87,7 +99,7 @@ export default function AdminDashboard() {
         <button onClick={() => setShowMobileSidebar(true)} className="p-3 bg-white/5 rounded-xl text-zinc-400"><Menu size={24} /></button>
       </div>
 
-      {/* 🚀 SIDEBAR (Drawer logic) */}
+      {/* 🚀 SIDEBAR (Drawer) */}
       <AnimatePresence>
         {(showMobileSidebar || (typeof window !== 'undefined' && window.innerWidth >= 1024)) && (
           <motion.nav 
@@ -99,9 +111,9 @@ export default function AdminDashboard() {
             <div className="space-y-4 flex-1">
               <SidebarBtn active={activeTab === 'uploads'} onClick={() => { setActiveTab('uploads'); setShowMobileSidebar(false); }} icon={<Globe size={22}/>} label="Universal" />
               <SidebarBtn active={activeTab === 'registry'} onClick={() => { setActiveTab('registry'); setShowMobileSidebar(false); }} icon={<Briefcase size={22}/>} label="Registry" />
-              <button onClick={() => setShowPassModal(true)} className="w-full flex items-center gap-5 p-6 rounded-[32px] transition-all font-bold text-xl text-zinc-500 hover:bg-white/5 hover:text-white"><Lock size={22} /><span className="tracking-tight uppercase font-black italic">Security</span></button>
+              <button onClick={() => setShowPassModal(true)} className="w-full flex items-center gap-5 p-6 rounded-[32px] transition-all font-bold text-xl text-zinc-500 hover:bg-white/5 hover:text-white group"><Lock size={22} className="group-hover:text-emerald-500" /><span className="tracking-tight uppercase font-black italic">Security</span></button>
             </div>
-            <button onClick={() => { localStorage.clear(); router.replace('/'); }} className="flex items-center gap-4 p-5 text-zinc-500 hover:text-red-400 font-bold mt-auto transition-all group"><LogOut size={22} /><span className="text-lg uppercase italic font-black">Exit Hub</span></button>
+            <button onClick={() => { localStorage.clear(); router.replace('/'); }} className="flex items-center gap-4 p-5 text-zinc-500 hover:text-red-400 font-bold mt-auto transition-all group"><LogOut size={22} className="group-hover:-translate-x-1" /> <span className="text-lg uppercase italic font-black">Exit Hub</span></button>
           </motion.nav>
         )}
       </AnimatePresence>
@@ -117,7 +129,7 @@ export default function AdminDashboard() {
         </div>
 
         <div className="bg-[#121214] border border-white/5 rounded-[32px] lg:rounded-[48px] overflow-hidden shadow-2xl">
-          <div className="p-6 lg:p-10 flex flex-col md:flex-row justify-between items-center gap-8 border-b border-white/5 bg-white/[0.01]"><h3 className="text-2xl lg:text-3xl font-black text-white italic uppercase tracking-tighter">{activeTab === 'uploads' ? 'Universal Feed' : 'Registry Control'}</h3><div className="relative w-full md:w-[450px]"><Search className="absolute left-6 top-1/2 -translate-y-1/2 text-zinc-600" size={24} /><input className="w-full bg-white/5 border border-white/10 rounded-[28px] py-4 lg:py-5 pl-16 pr-8 text-xl text-white outline-none focus:ring-2 focus:ring-emerald-500/20 placeholder:text-zinc-800" placeholder="Search Registry..." onChange={(e) => setSearchTerm(e.target.value)} /></div></div>
+          <div className="p-6 lg:p-10 flex flex-col md:flex-row justify-between items-center gap-8 border-b border-white/5 bg-white/[0.01]"><h3 className="text-2xl lg:text-3xl font-black text-white italic uppercase tracking-tighter">{activeTab === 'uploads' ? 'Universal Feed' : 'Registry Control'}</h3><div className="relative w-full md:w-[450px]"><Search className="absolute left-6 top-1/2 -translate-y-1/2 text-zinc-600" size={24} /><input className="w-full bg-white/5 border border-white/10 rounded-[28px] py-4 lg:py-5 pl-16 pr-8 text-xl text-white outline-none focus:ring-2 focus:ring-emerald-500/20 placeholder:text-zinc-800" placeholder="Search ONE Registry..." onChange={(e) => setSearchTerm(e.target.value)} /></div></div>
 
           <div className="p-4 lg:p-6">
             {activeTab === 'uploads' ? (
@@ -129,18 +141,18 @@ export default function AdminDashboard() {
                           <div className={`w-12 h-12 lg:w-16 lg:h-16 rounded-2xl flex items-center justify-center font-black text-[10px] lg:text-xs uppercase ${item.sys_cat === 'publication' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-blue-500/10 text-blue-500'}`}>{item.pub_type?.[0] || item.category?.[0]}</div>
                           <div><div className="flex gap-2 lg:gap-3 mb-1 lg:mb-2"><span className="text-[8px] lg:text-[10px] font-black uppercase tracking-widest text-emerald-500 bg-emerald-500/5 px-2 py-0.5 rounded">{item.pub_type || item.category}</span></div><h4 className="text-xl lg:text-3xl font-black text-white uppercase italic leading-tight">{item.title}</h4><p className="text-[10px] lg:text-sm text-zinc-500 mt-1 lg:mt-2 font-bold uppercase italic">Scholar: {item.student_name} • Mentor: {item.mentor_name}</p></div>
                         </div>
-                        <div className="flex items-center gap-4"><button onClick={(e) => { e.stopPropagation(); handleDelete(item.sys_cat === 'publication' ? 'publications' : 'projects', item.id); }} className="hidden lg:block p-4 bg-zinc-900 rounded-2xl text-zinc-700 hover:text-red-500 transition-all opacity-0 group-hover:opacity-100"><Trash2 size={24} /></button><ChevronDown className={`text-zinc-700 transition-all duration-500 ${expandedId === item.id ? 'rotate-180 text-emerald-500' : ''}`} size={24} /></div>
+                        <ChevronDown className={`text-zinc-700 transition-all duration-500 ${expandedId === item.id ? 'rotate-180 text-emerald-500' : ''}`} size={24} />
                       </div>
-                      <AnimatePresence>{expandedId === item.id && (<motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="bg-black/20 border-t border-white/5"><div className="p-6 lg:p-10 grid grid-cols-1 md:grid-cols-2 gap-8 lg:gap-10"><div className="space-y-6"><DetailItem label="Full Narrative" value={item.summary || item.description} /><DetailItem label="Mentor Credentials" value={`${item.mentor_name} (${item.mentor_email})`} /></div><div className="space-y-6"><div className="bg-white/5 p-6 rounded-3xl border border-white/5"><p className="text-[9px] font-black uppercase text-zinc-600 mb-4 tracking-widest italic text-center">Repository Artifacts</p><div className="flex flex-wrap justify-center gap-4">{item.drive_link && <ArtifactLink label="Drive Assets" icon={<Globe size={14}/>} url={item.drive_link} />}{item.github_link && <ArtifactLink label="Code Repository" icon={<Code2 size={14}/>} url={item.github_link} />}{item.doc_link && <ArtifactLink label="Project Docs" icon={<FileText size={14}/>} url={item.doc_link} />}</div></div><div className="grid grid-cols-2 gap-4"><MiniDataBox label="Date Logged" val={new Date(item.created_at).toLocaleDateString()} /><MiniDataBox label="Track Type" val={item.pub_type || item.category} /></div></div></div></motion.div>)}</AnimatePresence>
+                      <AnimatePresence>{expandedId === item.id && (<motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="bg-black/20 border-t border-white/5"><div className="p-6 lg:p-10 grid grid-cols-1 md:grid-cols-2 gap-8 lg:gap-10"><div className="space-y-6"><DetailItem label="Full Narrative" value={item.summary || item.description} /><DetailItem label="Mentor Credentials" value={`${item.mentor_name} (${item.mentor_email})`} /></div><div className="space-y-6"><div className="bg-white/5 p-6 rounded-3xl border border-white/5"><p className="text-[9px] font-black uppercase text-zinc-600 mb-4 tracking-widest italic text-center">Repository Artifacts</p><div className="flex flex-wrap justify-center gap-4">{item.drive_link && <ArtifactLink label="Drive Assets" icon={<Globe size={14}/>} url={item.drive_link} />}{item.github_link && <ArtifactLink label="Code Repository" icon={<Code2 size={14}/>} url={item.github_link} />}{item.doc_link && <ArtifactLink label="Project Docs" icon={<FileText size={14}/>} url={item.doc_link} />}</div></div><div className="grid grid-cols-2 gap-4"><MiniDataBox label="Date Logged" val={new Date(item.created_at).toLocaleDateString()} /><MiniDataBox label="Track Type" val={item.pub_type || item.category} /></div><button onClick={() => handleDelete(item.sys_cat === 'publication' ? 'publications' : 'projects', item.id)} className="w-full py-4 bg-red-500/10 border border-red-500/20 rounded-2xl text-red-500 font-black uppercase text-[10px] hover:bg-red-500 hover:text-white transition-all">Nuke Entry From ONE</button></div></div></motion.div>)}</AnimatePresence>
                     </div>
                 ))}
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {users.filter(u => u.role !== 'admin' && (u.name + u.email).toLowerCase().includes(searchTerm.toLowerCase())).map((u, i) => (
-                  <div key={i} className="bg-white/[0.02] border border-white/5 p-6 lg:p-8 rounded-[32px] lg:rounded-[40px] group transition-all hover:border-emerald-500/20">
-                     <div className="flex justify-between items-start mb-6"><div className="flex items-center gap-4 lg:gap-6"><div className="w-12 h-12 lg:w-16 lg:h-16 bg-zinc-800 rounded-2xl lg:rounded-3xl flex items-center justify-center text-emerald-500 font-black text-2xl lg:text-3xl shadow-inner border border-white/5">{u.name[0]}</div><div><h3 className="text-xl lg:text-2xl font-black text-white italic uppercase leading-none tracking-tighter">{u.name}</h3><p className="text-zinc-500 text-[8px] lg:text-[10px] font-black uppercase tracking-[0.3em] mt-2">{u.role} • {u.dept}</p></div></div><button onClick={() => handleDelete('users', u.user_id)} className="p-3 bg-zinc-900 rounded-xl text-zinc-700 hover:text-red-500 transition-colors"><Trash2 size={20}/></button></div>
-                     <details className="group/details"><summary className="list-none cursor-pointer flex items-center justify-between w-full py-4 px-6 bg-white/5 rounded-2xl border border-white/5 text-[8px] lg:text-[10px] font-black uppercase text-emerald-500 group-open:mb-4 transition-all"><span>View Upload Profile</span><ChevronRight size={16} className="group-open/details:rotate-90 transition-transform"/></summary><div className="space-y-2 mt-4 max-h-48 overflow-y-auto pr-2 custom-scrollbar">{submissions.filter(s => u.role === 'student' ? s.student_id === u.user_id : s.mentor_email === u.email).map((entry, idx) => (<div key={idx} className="p-4 bg-white/5 rounded-xl border border-white/5 flex justify-between items-center group/item"><div><p className="text-xs font-bold text-zinc-300 uppercase italic">{entry.title}</p><p className="text-[8px] font-black text-zinc-600 uppercase mt-1">{entry.pub_type || entry.category}</p></div><button onClick={() => handleDelete(entry.sys_cat === 'publication' ? 'publications' : 'projects', entry.id)} className="opacity-0 group-hover/item:opacity-100 text-red-500/50 hover:text-red-500 transition-all"><Trash2 size={14}/></button></div>))}<div className="h-4" /></div></details>
+                  <div key={i} className="bg-white/[0.02] border border-white/5 p-6 lg:p-8 rounded-[32px] lg:rounded-[40px] group transition-all hover:border-emerald-500/20 shadow-inner">
+                     <div className="flex justify-between items-start mb-6"><div className="flex items-center gap-4 lg:gap-6"><div className={`w-12 h-12 lg:w-16 lg:h-16 rounded-2xl lg:rounded-3xl flex items-center justify-center font-black text-2xl lg:text-3xl shadow-inner border border-white/5 ${u.role === 'faculty' ? 'text-blue-500' : 'text-emerald-500'}`}>{u.name[0]}</div><div><h3 className="text-xl lg:text-2xl font-black text-white italic uppercase leading-none tracking-tighter">{u.name}</h3><p className="text-zinc-500 text-[8px] lg:text-[10px] font-black uppercase tracking-[0.3em] mt-2 italic">{u.role} • {u.dept}</p></div></div><button onClick={() => handleDelete('users', u.user_id)} className="p-3 bg-zinc-900 rounded-xl text-zinc-700 hover:text-red-500 transition-colors"><Trash2 size={20}/></button></div>
+                     <details className="group/details"><summary className="list-none cursor-pointer flex items-center justify-between w-full py-4 px-6 bg-white/5 rounded-2xl border border-white/5 text-[8px] lg:text-[10px] font-black uppercase text-emerald-500 group-open:mb-4 transition-all italic"><span>View Upload Profile</span><ChevronRight size={16} className="group-open/details:rotate-90 transition-transform"/></summary><div className="space-y-2 mt-4 max-h-48 overflow-y-auto pr-2 custom-scrollbar">{submissions.filter(s => u.role === 'student' ? s.student_id === u.user_id : s.mentor_email === u.email).map((entry, idx) => (<div key={idx} className="p-4 bg-white/5 rounded-xl border border-white/5 flex justify-between items-center group/item"><div><p className="text-xs font-bold text-zinc-300 uppercase italic">{entry.title}</p><p className="text-[8px] font-black text-zinc-600 uppercase mt-1 italic">{entry.pub_type || entry.category}</p></div><button onClick={() => handleDelete(entry.sys_cat === 'publication' ? 'publications' : 'projects', entry.id)} className="opacity-0 group-hover/item:opacity-100 text-red-500/50 hover:text-red-500 transition-all"><Trash2 size={14}/></button></div>))}<div className="h-4" /></div></details>
                   </div>
                 ))}
               </div>
@@ -150,16 +162,43 @@ export default function AdminDashboard() {
 
         <AnimatePresence>{showPassModal && (<div className="fixed inset-0 z-[100] flex items-center justify-center p-6 backdrop-blur-3xl bg-black/80"><motion.div initial={{ scale: 0.95 }} animate={{ scale: 1 }} exit={{ scale: 0.95 }} className="bg-[#121214] border border-white/10 w-full max-w-xl rounded-[40px] lg:rounded-[60px] p-8 lg:p-12 shadow-2xl relative"><button onClick={() => setShowPassModal(false)} className="absolute top-8 right-8 text-zinc-600 hover:text-white transition-all"><X size={32}/></button><h2 className="text-4xl lg:text-5xl font-black text-white mb-10 italic uppercase tracking-tighter">Reset ROOT.</h2><form onSubmit={handlePasswordUpdate} className="space-y-8"><Input label="New Key" type="password" onChange={(e:any) => setPassData({...passData, new: e.target.value})} icon={<Lock size={18}/>} /><Input label="Confirm Key" type="password" onChange={(e:any) => setPassData({...passData, confirm: e.target.value})} icon={<CheckCircle2 size={18}/>} /><button type="submit" disabled={updatingPass} className="w-full py-6 lg:py-8 bg-emerald-600 text-white rounded-[30px] lg:rounded-[40px] font-black text-xl lg:text-2xl shadow-2xl active:scale-95 flex items-center justify-center gap-4">{updatingPass ? <Loader2 className="animate-spin" /> : 'Secure ROOT'}</button></form></motion.div></div>)}</AnimatePresence>
 
-        <AnimatePresence>{showModal && (<div className="fixed inset-0 z-50 flex items-center justify-center p-6 backdrop-blur-3xl bg-black/80"><motion.div initial={{ scale: 0.95, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.95, y: 20 }} className="bg-[#121214] border border-white/10 w-full max-w-2xl rounded-[40px] lg:rounded-[60px] p-8 lg:p-12 relative shadow-2xl"><button onClick={() => setShowModal(false)} className="absolute top-8 right-8 text-zinc-600 hover:text-white transition-all"><X size={32} /></button><h2 className="text-4xl lg:text-5xl font-black text-white mb-10 italic uppercase tracking-tighter">Provision {creationMode}.</h2><form onSubmit={handleProvision} className="space-y-6"><Input icon={<Users size={20}/>} label="Full Identity Name" onChange={(e:any) => setFormData({...formData, name: e.target.value})} /><Input icon={<Mail size={20}/>} label="Academic Email" onChange={(e:any) => setFormData({...formData, email: e.target.value})} /><Input icon={<Database size={20}/>} label="Department" onChange={(e:any) => setFormData({...formData, dept: e.target.value})} /><button type="submit" disabled={submitting} className={`w-full py-6 lg:py-8 rounded-[30px] lg:rounded-[40px] font-black text-xl lg:text-2xl text-white mt-6 shadow-2xl transition-all ${creationMode === 'student' ? 'bg-emerald-600' : 'bg-blue-600'}`}>Sync & Finalize</button></form></motion.div></div>)}</AnimatePresence>
+        {/* 📥 PROVISION MODAL (UPGRADED WITH DUAL TOGGLE) */}
+        <AnimatePresence>{showModal && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 backdrop-blur-3xl bg-black/80">
+            <motion.div initial={{ scale: 0.95, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.95, y: 20 }} className="bg-[#121214] border border-white/10 w-full max-w-2xl rounded-[40px] lg:rounded-[60px] p-8 lg:p-12 relative shadow-2xl">
+               <button onClick={() => setShowModal(false)} className="absolute top-8 right-8 text-zinc-600 hover:text-white transition-all"><X size={32} /></button>
+               <h2 className="text-4xl lg:text-5xl font-black text-white mb-6 italic uppercase tracking-tighter">Provision {creationMode}.</h2>
+               
+               {/* 🛠️ THE NEW DUAL ROLE TOGGLE */}
+               <div className="flex bg-black/40 p-2 rounded-[24px] w-fit mb-10 border border-white/5 mx-auto lg:mx-0">
+                  <button onClick={() => setCreationMode('student')} className={`px-8 py-3 rounded-[18px] font-black text-[10px] lg:text-xs uppercase transition-all ${creationMode === 'student' ? 'bg-emerald-600 text-white shadow-xl shadow-emerald-600/20' : 'text-zinc-600'}`}>Scholar</button>
+                  <button onClick={() => setCreationMode('faculty')} className={`px-8 py-3 rounded-[18px] font-black text-[10px] lg:text-xs uppercase transition-all ${creationMode === 'faculty' ? 'bg-blue-600 text-white shadow-xl shadow-blue-600/20' : 'text-zinc-600'}`}>Mentor</button>
+               </div>
+
+               <form onSubmit={handleProvision} className="space-y-6">
+                  <Input icon={<Users size={20}/>} label="Full Identity Name" onChange={(e:any) => setFormData({...formData, name: e.target.value})} value={formData.name} />
+                  <Input icon={<Mail size={20}/>} label="Academic Email" onChange={(e:any) => setFormData({...formData, email: e.target.value})} value={formData.email} />
+                  <Input icon={<Database size={20}/>} label="Department" onChange={(e:any) => setFormData({...formData, dept: e.target.value})} value={formData.dept} />
+                  
+                  <button type="submit" disabled={submitting} className={`w-full py-6 lg:py-8 rounded-[30px] lg:rounded-[40px] font-black text-xl lg:text-2xl text-white mt-6 shadow-2xl transition-all active:scale-95 flex items-center justify-center gap-4 ${creationMode === 'student' ? 'bg-emerald-600 shadow-emerald-600/20' : 'bg-blue-600 shadow-blue-600/20'}`}>
+                    {submitting ? <Loader2 className="animate-spin" /> : <Send size={24} strokeWidth={3} />}
+                    <span>Sync & Finalize</span>
+                  </button>
+               </form>
+            </motion.div>
+          </div>
+        )}</AnimatePresence>
       </main>
       {showMobileSidebar && <div onClick={() => setShowMobileSidebar(false)} className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[65] lg:hidden" />}
     </div>
   );
 }
 
-function DetailItem({ label, value }: { label: string, value: string }) { return (<div className="space-y-2"><p className="text-[9px] font-black uppercase text-zinc-700 tracking-[0.2em] italic">{label}</p><div className="bg-white/5 border border-white/10 p-5 rounded-2xl text-sm italic text-zinc-400 leading-relaxed shadow-inner">{value || "No detailed log found."}</div></div>); }
+// ATOMS (Corrected & Responsive)
+function DetailItem({ label, value }: { label: string, value: string }) { return (<div className="space-y-2"><p className="text-[9px] font-black uppercase text-zinc-700 tracking-[0.2em] italic ml-4">{label}</p><div className="bg-white/5 border border-white/10 p-5 rounded-2xl text-sm italic text-zinc-400 leading-relaxed shadow-inner">{value || "No detailed log found."}</div></div>); }
 function ArtifactLink({ label, icon, url }: { label: string, icon: any, url: string }) { return (<a href={url} target="_blank" className="flex items-center gap-3 px-6 py-3 bg-zinc-900 hover:bg-white hover:text-black rounded-2xl text-[10px] font-black uppercase transition-all shadow-xl border border-white/5">{icon} {label} <ExternalLink size={12} className="opacity-50" /></a>); }
-function MiniDataBox({ label, val }: any) { return (<div className="bg-white/[0.02] border border-white/5 p-4 rounded-2xl"><p className="text-[8px] font-black uppercase text-zinc-700 mb-1">{label}</p><p className="text-xs font-bold text-zinc-400 italic uppercase">{val}</p></div>); }
+function MiniDataBox({ label, val }: any) { return (<div className="bg-white/[0.02] border border-white/5 p-4 rounded-2xl"><p className="text-[8px] font-black uppercase text-zinc-700 mb-1 italic">{label}</p><p className="text-xs font-bold text-zinc-400 italic uppercase">{val}</p></div>); }
 function SidebarBtn({ icon, label, active, onClick }: any) { return (<button onClick={onClick} className={`w-full flex items-center justify-between p-6 rounded-[32px] transition-all font-bold text-xl group ${active ? 'bg-white text-[#09090B] shadow-xl' : 'text-zinc-500 hover:bg-white/5 hover:text-white'}`}><div className="flex items-center gap-5"><span>{icon}</span><span className="tracking-tight uppercase font-black italic">{label}</span></div>{active && <ChevronRight size={18} />}</button>); }
 function StatBox({ label, value, color }: any) { const themes: any = { emerald: "text-emerald-500", blue: "text-blue-500", orange: "text-orange-500", rose: "text-rose-500" }; return (<div className="bg-[#121214] border border-white/5 p-4 lg:p-6 rounded-[28px] lg:rounded-[32px] shadow-xl relative overflow-hidden group"><p className="text-zinc-600 text-[8px] font-black uppercase tracking-widest italic mb-2 leading-none">{label}</p><h4 className={`text-2xl lg:text-4xl font-black tracking-tighter ${themes[color]}`}>{value}</h4></div>); }
-function Input({ label, icon, onChange, type = "text" }: any) { return (<div className="space-y-3"><label className="text-[10px] font-black text-zinc-600 uppercase tracking-[0.3em] ml-4 flex items-center gap-2 italic">{icon} {label}</label><input required type={type} className="w-full bg-white/5 border border-white/10 rounded-[30px] py-4 lg:py-5 px-8 lg:px-10 text-lg lg:text-xl text-white outline-none focus:border-white/20 shadow-inner placeholder:text-zinc-900 italic" placeholder="..." onChange={onChange} /></div>); }
+function Input({ label, icon, onChange, type = "text", value }: any) { return (<div className="space-y-3"><label className="text-[10px] font-black text-zinc-600 uppercase tracking-[0.3em] ml-4 flex items-center gap-2 italic">{icon} {label}</label><input required type={type} value={value} className="w-full bg-white/5 border border-white/10 rounded-[30px] py-4 lg:py-5 px-8 lg:px-10 text-lg lg:text-xl text-white outline-none focus:border-white/20 shadow-inner placeholder:text-zinc-900 italic" placeholder="..." onChange={onChange} /></div>); }
+function Send({ size, strokeWidth }: any) { return <Activity size={size} strokeWidth={strokeWidth} />; }
