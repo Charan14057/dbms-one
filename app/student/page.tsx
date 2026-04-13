@@ -12,6 +12,7 @@ import {
 
 export default function StudentHub() {
   const router = useRouter();
+  const [mounted, setMounted] = useState(false);
   const [activeTrack, setActiveTrack] = useState<'publication' | 'project'>('publication');
   const [showVault, setShowVault] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -24,11 +25,18 @@ export default function StudentHub() {
   const [showPassModal, setShowPassModal] = useState(false);
   const [passData, setPassData] = useState({ new: '', confirm: '' });
   const [updatingPass, setUpdatingPass] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
 
+  // 📥 BIFURCATED TRACK STATES
   const [pubForm, setPubForm] = useState({ title: '', mentor_name: '', mentor_email: '', associated_project: '', drive_link: '', summary: '', details: '', pub_type: 'journal' });
   const [projForm, setProjForm] = useState({ title: '', description: '', mentor_name: '', mentor_email: '', doc_link: '', github_link: '', notes: '', category: 'ongoing' });
 
-  useEffect(() => { fetchScholarSystem(); }, []);
+  const toggleExpand = (id: string) => setExpandedId(expandedId === id ? null : id);
+
+  useEffect(() => { 
+    setMounted(true);
+    fetchScholarSystem(); 
+  }, []);
 
   async function fetchScholarSystem() {
     setLoading(true);
@@ -47,25 +55,56 @@ export default function StudentHub() {
     setLoading(false);
   }
 
+  const validateAndFixLink = (url: string) => {
+    if (!url) return '';
+    const clean = url.trim();
+    return (clean.startsWith('http://') || clean.startsWith('https://')) ? clean : `https://${clean}`;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitting(true);
-    const table = activeTrack === 'publication' ? 'publications' : 'projects';
-    const rawData = activeTrack === 'publication' ? pubForm : projForm;
+    
+    const isPub = activeTrack === 'publication';
+    const form = isPub ? pubForm : projForm;
+    const cleanMentorEmail = form.mentor_email.toLowerCase().trim();
 
-    // 🛠️ DATA CLEANING: Ensure mentor_email is lowercase to match Faculty login
-    const data = { 
-      ...rawData, 
-      mentor_email: rawData.mentor_email.toLowerCase().trim() 
+    // 🛡️ CRITICAL HANDSHAKE: Validate Mentor Exists in Database
+    const { data: mentor, error: mentorErr } = await supabase
+      .from('users')
+      .select('role')
+      .eq('email', cleanMentorEmail)
+      .single();
+
+    if (mentorErr || !mentor || mentor.role !== 'faculty') {
+      alert("HANDSHAKE REFUSED: The specified Mentor email is not registered in the Faculty Registry.");
+      setSubmitting(false);
+      return;
+    }
+
+    const table = isPub ? 'publications' : 'projects';
+    const data = isPub ? {
+      ...pubForm,
+      mentor_email: cleanMentorEmail,
+      drive_link: validateAndFixLink(pubForm.drive_link),
+      student_id: profile.user_id,
+      student_name: profile.name
+    } : {
+      ...projForm,
+      mentor_email: cleanMentorEmail,
+      github_link: validateAndFixLink(projForm.github_link),
+      doc_link: validateAndFixLink(projForm.doc_link),
+      student_id: profile.user_id,
+      student_name: profile.name
     };
 
-    const { error } = await supabase.from(table).insert([{ ...data, student_id: profile.user_id, student_name: profile.name }]);
+    const { error } = await supabase.from(table).insert([data]);
     if (!error) { 
         setShowVault(false); 
-        fetchScholarSystem(); 
+        fetchScholarSystem();
         setPubForm({ title: '', mentor_name: '', mentor_email: '', associated_project: '', drive_link: '', summary: '', details: '', pub_type: 'journal' });
         setProjForm({ title: '', description: '', mentor_name: '', mentor_email: '', doc_link: '', github_link: '', notes: '', category: 'ongoing' });
-    } else { alert("Sync Error: Verify Connection."); }
+    }
     setSubmitting(false);
   };
 
@@ -74,145 +113,185 @@ export default function StudentHub() {
     if (passData.new !== passData.confirm) return alert("Keys do not match.");
     setUpdatingPass(true);
     const { error } = await supabase.from('users').update({ temp_pass: passData.new }).eq('email', profile.email);
-    if (!error) { alert("SUCCESS: Access Key Updated."); setShowPassModal(false); }
+    if (!error) { alert("SUCCESS: Key Secured."); setShowPassModal(false); }
     setUpdatingPass(false);
   };
 
-  if (loading) return <div className="min-h-screen bg-[#09090B] flex items-center justify-center text-emerald-500 font-black text-2xl animate-pulse italic uppercase tracking-widest">Accessing ONE...</div>;
+  if (!mounted || loading) return <div className="min-h-screen bg-white flex items-center justify-center text-blue-600 font-black text-2xl animate-pulse italic uppercase tracking-widest">ONE SCHOLAR SYNC...</div>;
 
   return (
-    <div className="flex flex-col lg:flex-row min-h-screen bg-[#09090B] text-[#FAFAFA] font-sans selection:bg-emerald-500/30 overflow-x-hidden">
-      <div className="lg:hidden flex items-center justify-between p-6 border-b border-white/5 bg-[#0C0C0E] sticky top-0 z-[60]">
-        <div className="flex items-center gap-3"><div className="w-10 h-10 bg-emerald-600 rounded-xl flex items-center justify-center shadow-lg"><ShieldCheck size={20} className="text-white" /></div><span className="text-xl font-black tracking-tighter uppercase italic">DBMS<span className="text-emerald-500">ONE</span></span></div>
-        <button onClick={() => setShowMobileSidebar(true)} className="p-3 bg-white/5 rounded-xl text-zinc-400"><Menu size={24} /></button>
+    <div className="flex flex-col lg:flex-row min-h-screen bg-[#F8FAFC] text-slate-900 font-sans overflow-x-hidden">
+      
+      {/* 📱 MOBILE HEADER */}
+      <div className="lg:hidden flex items-center justify-between p-6 bg-blue-600 text-white sticky top-0 z-[60] shadow-[0_4px_20px_rgba(0,0,0,0.15)]">
+        <div className="flex items-center gap-3"><ShieldCheck size={28} strokeWidth={2.5} /><span className="text-xl font-black tracking-tighter uppercase">ONE <span className="font-light text-blue-100 text-lg">HUB</span></span></div>
+        <button onClick={() => setShowMobileSidebar(true)} className="p-2 bg-white/20 rounded-xl active:scale-90 transition-transform"><Menu size={24} /></button>
       </div>
+
+      {/* 🚀 NAVIGATION DRAWER (White Background) */}
       <AnimatePresence>
-        {(showMobileSidebar || (typeof window !== 'undefined' && window.innerWidth >= 1024)) && (
-          <motion.nav initial={{ x: -320 }} animate={{ x: 0 }} exit={{ x: -320 }} className={`fixed lg:relative z-[70] w-80 h-full border-r border-white/5 bg-[#0C0C0E] p-10 flex flex-col flex-shrink-0 transition-transform lg:translate-x-0 ${showMobileSidebar ? 'translate-x-0' : '-translate-x-full lg:flex'}`}>
-            <button onClick={() => setShowMobileSidebar(false)} className="lg:hidden absolute top-8 right-8 text-zinc-500"><X size={28}/></button>
-            <div className="flex items-center gap-4 mb-16 px-2 hidden lg:flex"><div className="w-12 h-12 bg-emerald-600 rounded-2xl flex items-center justify-center shadow-xl"><ShieldCheck size={26} className="text-white" /></div><span className="text-2xl font-black tracking-tighter uppercase leading-none italic">DBMS<br/><span className="text-emerald-500">ONE</span></span></div>
-            <div className="flex-1 space-y-12">
-              <div className="space-y-6">
-                <label className="text-[10px] font-black uppercase tracking-[0.5em] text-zinc-600 italic">Identity</label>
-                <div className="space-y-4">
-                  <ProfileItem label="Scholar" value={profile?.name} icon={<User size={16}/>} />
-                  <ProfileItem label="Network ID" value={profile?.email} icon={<Mail size={16}/>} />
-                  <button onClick={() => { setShowPassModal(true); setShowMobileSidebar(false); }} className="w-full bg-white/5 border border-white/5 p-5 rounded-[28px] flex items-center gap-4 hover:bg-white/10 transition-all text-left group">
-                    <div className="w-10 h-10 rounded-xl bg-zinc-900 flex items-center justify-center text-zinc-500 group-hover:text-emerald-500 transition-colors"><Lock size={16}/></div>
-                    <div className="min-w-0"><p className="text-[8px] font-black text-zinc-600 uppercase leading-none italic">Security</p><p className="text-xs font-bold text-white italic truncate">Update Access Key</p></div>
-                  </button>
-                </div>
+        {(showMobileSidebar || (mounted && window.innerWidth >= 1024)) && (
+          <motion.nav initial={{ x: -320 }} animate={{ x: 0 }} exit={{ x: -320 }} className={`fixed lg:relative z-[70] w-80 h-full bg-white border-r border-slate-200 p-8 flex flex-col flex-shrink-0 transition-transform lg:translate-x-0 ${showMobileSidebar ? 'translate-x-0 shadow-2xl' : '-translate-x-full lg:flex'}`}>
+            <button onClick={() => setShowMobileSidebar(false)} className="lg:hidden absolute top-8 right-8 text-slate-400 hover:text-blue-600 transition-colors"><X size={28}/></button>
+            <div className="hidden lg:flex items-center gap-4 mb-16 px-2"><ShieldCheck size={36} className="text-blue-600" strokeWidth={2.5} /><span className="text-2xl font-black tracking-tighter uppercase text-slate-900 leading-none">ONE<br/><span className="text-blue-600 font-medium text-xl">SCHOLAR</span></span></div>
+            
+            <div className="flex-1 space-y-10">
+              <div className="space-y-4">
+                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-2 italic">Student Identity</label>
+                <ProfileItem label="Scholar" value={profile?.name} icon={<User size={18}/>} />
+                <ProfileItem label="Network" value={profile?.email} icon={<Mail size={18}/>} />
+                <button onClick={() => { setShowPassModal(true); setShowMobileSidebar(false); }} className="w-full bg-slate-50 border border-slate-100 p-5 rounded-2xl flex items-center gap-4 hover:bg-white hover:shadow-md transition-all text-left group shadow-sm">
+                  <div className="w-10 h-10 rounded-xl bg-white border border-slate-200 flex items-center justify-center text-slate-400 group-hover:text-emerald-600 shadow-sm transition-colors"><Lock size={18}/></div>
+                  <div className="min-w-0"><p className="text-[9px] font-black text-slate-400 uppercase leading-none italic">Security</p><p className="text-xs font-bold text-slate-900 truncate">Reset Access Key</p></div>
+                </button>
               </div>
-              <div className="space-y-6">
-                <label className="text-[10px] font-black uppercase tracking-[0.5em] text-zinc-600 italic">Metrics</label>
+
+              <div className="space-y-4">
+                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-2 italic">Activity Metrics</label>
                 <div className="grid grid-cols-1 gap-4">
-                  <div className="bg-[#121214] border border-white/5 p-8 rounded-[40px] text-center shadow-inner"><h4 className="text-6xl font-black text-emerald-500 tracking-tighter">{stats.pubs}</h4><p className="text-[10px] font-black uppercase text-zinc-700 mt-2 italic">Publications</p></div>
-                  <div className="bg-[#121214] border border-white/5 p-8 rounded-[40px] text-center shadow-inner"><h4 className="text-6xl font-black text-blue-500 tracking-tighter">{stats.projs}</h4><p className="text-[10px] font-black uppercase text-zinc-700 mt-2 italic">Active Projects</p></div>
+                  <div className="bg-emerald-600 p-8 rounded-[32px] text-white shadow-[0_15px_30px_rgba(16,185,129,0.2)] border-b-8 border-emerald-800">
+                    <h4 className="text-6xl font-black tabular-nums drop-shadow-[0_4px_4px_rgba(0,0,0,0.2)]">{stats.pubs}</h4>
+                    <p className="text-[10px] font-bold uppercase tracking-widest mt-2 opacity-80 italic">Publications</p>
+                  </div>
+                  <div className="bg-slate-900 p-8 rounded-[32px] text-white shadow-[0_15px_30px_rgba(15,23,42,0.2)] border-b-8 border-slate-950">
+                    <h4 className="text-6xl font-black tabular-nums drop-shadow-[0_4px_4px_rgba(0,0,0,0.2)]">{stats.projs}</h4>
+                    <p className="text-[10px] font-bold uppercase tracking-widest mt-2 opacity-80 italic">Active Projects</p>
+                  </div>
                 </div>
               </div>
             </div>
-            <button onClick={() => { localStorage.clear(); router.replace('/'); }} className="flex items-center gap-4 p-5 text-zinc-500 hover:text-red-400 font-bold mt-auto transition-all group"><LogOut size={22} className="group-hover:-translate-x-1 transition-transform" /> <span className="text-lg uppercase italic font-black">Exit Hub</span></button>
+            <button onClick={() => { localStorage.clear(); router.replace('/'); }} className="flex items-center gap-4 p-5 text-slate-400 hover:text-red-600 font-bold mt-auto transition-all group active:scale-95"><LogOut size={22} className="group-hover:-translate-x-1 transition-transform" /> <span className="text-lg uppercase font-black tracking-tight italic">Disconnect</span></button>
           </motion.nav>
         )}
       </AnimatePresence>
-      <main className="flex-1 overflow-y-auto p-6 lg:p-16 relative custom-scrollbar">
-        <header className="flex flex-col xl:flex-row justify-between items-start xl:items-center mb-12 gap-10">
-          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}><h1 className="text-6xl lg:text-8xl font-black tracking-tighter italic text-white leading-none">Scholar.</h1><p className="text-zinc-500 text-lg lg:text-xl font-medium mt-3 uppercase tracking-[0.3em] italic">ONE Integrated Repository</p></motion.div>
-          <button onClick={() => setShowVault(!showVault)} className={`${showVault ? 'bg-zinc-800 text-zinc-400' : 'bg-white text-black'} w-full lg:w-auto px-10 py-5 rounded-[32px] font-black text-xl shadow-2xl transition-all active:scale-95 flex items-center justify-center gap-3`}>{showVault ? <ArrowUpCircle size={24} /> : <Plus size={24} strokeWidth={3} />}{showVault ? 'Dismiss Vault' : 'Initiate Research'}</button>
-        </header>
-        <AnimatePresence>
-          {showVault && (
-            <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="bg-[#121214] border border-white/5 rounded-[40px] lg:rounded-[60px] p-8 lg:p-12 mb-16 shadow-3xl overflow-hidden">
-              <div className="flex bg-black/40 p-2 rounded-[24px] w-fit mb-10 border border-white/5">
-                <button onClick={() => setActiveTrack('publication')} className={`px-6 lg:px-10 py-3 rounded-[18px] font-black text-[10px] lg:text-xs uppercase transition-all ${activeTrack === 'publication' ? 'bg-emerald-600 text-white' : 'text-zinc-500'}`}>Publication</button>
-                <button onClick={() => setActiveTrack('project')} className={`px-6 lg:px-10 py-3 rounded-[18px] font-black text-[10px] lg:text-xs uppercase transition-all ${activeTrack === 'project' ? 'bg-blue-600 text-white' : 'text-zinc-500'}`}>Project Track</button>
+
+      <main className="flex-1 overflow-y-auto relative custom-scrollbar">
+        {/* 📘 3D BLUE HEADER */}
+        <div className="bg-gradient-to-br from-blue-600 to-blue-800 p-10 lg:p-20 text-white shadow-xl relative overflow-hidden">
+           <div className="absolute top-0 right-0 w-96 h-96 bg-white/10 rounded-full blur-[100px] -mr-32 -mt-32" />
+           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="relative z-10 flex flex-col lg:flex-row justify-between items-start lg:items-center gap-10">
+              <div>
+                <h1 className="text-6xl lg:text-8xl font-black tracking-tighter leading-none uppercase drop-shadow-2xl italic">Scholar<span className="text-blue-300">.</span></h1>
+                <p className="text-blue-100 text-lg font-bold mt-4 uppercase tracking-[0.4em] opacity-80 italic underline underline-offset-8 decoration-blue-400/30">Integrated Research Repository</p>
               </div>
-              <form onSubmit={handleSubmit} className="space-y-12">
-                {activeTrack === 'publication' ? (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
-                    <FormInput label="Research Title" placeholder="..." onChange={(e: any) => setPubForm({...pubForm, title: e.target.value})} value={pubForm.title} />
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6"><FormInput label="Mentor Name" placeholder="..." onChange={(e: any) => setPubForm({...pubForm, mentor_name: e.target.value})} value={pubForm.mentor_name} /><FormInput label="Mentor Email" placeholder="..." onChange={(e: any) => setPubForm({...pubForm, mentor_email: e.target.value})} value={pubForm.mentor_email} /></div>
-                    <FormInput label="Associated Project" placeholder="..." onChange={(e: any) => setPubForm({...pubForm, associated_project: e.target.value})} value={pubForm.associated_project} />
-                    <FormInput label="Google Drive Link" icon={<Globe size={16}/>} placeholder="..." onChange={(e: any) => setPubForm({...pubForm, drive_link: e.target.value})} value={pubForm.drive_link} />
-                    <div className="md:col-span-2 space-y-10">
-                      <div className="space-y-3"><label className="text-[10px] font-black text-zinc-600 uppercase tracking-[0.5em] ml-6 italic">Classification</label><select className="w-full bg-[#1A1A1E] border border-white/10 rounded-[30px] py-6 px-10 text-xl text-white outline-none focus:border-emerald-500 appearance-none font-bold italic shadow-inner" onChange={(e: any) => setPubForm({...pubForm, pub_type: e.target.value})} value={pubForm.pub_type}><option value="journal">Journal Paper</option><option value="patent">Intellectual Patent</option><option value="conference">Conference Proceeding</option></select></div>
-                      <FormArea label="Executive Summary" placeholder="..." onChange={(e: any) => setPubForm({...pubForm, summary: e.target.value})} value={pubForm.summary} />
-                      <FormArea label="Deep Narrative" placeholder="..." onChange={(e: any) => setPubForm({...pubForm, details: e.target.value})} value={pubForm.details} />
-                    </div>
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
-                    <FormInput label="Execution Title" placeholder="..." onChange={(e: any) => setProjForm({...projForm, title: e.target.value})} value={projForm.title} />
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6"><FormInput label="Mentor Name" placeholder="..." onChange={(e: any) => setProjForm({...projForm, mentor_name: e.target.value})} value={projForm.mentor_name} /><FormInput label="Mentor Email" placeholder="..." onChange={(e: any) => setProjForm({...projForm, mentor_email: e.target.value})} value={projForm.mentor_email} /></div>
-                    <FormInput label="Git Repository" icon={<Code2 size={16}/>} placeholder="..." onChange={(e: any) => setProjForm({...projForm, github_link: e.target.value})} value={projForm.github_link} />
-                    <FormInput label="Related Document" placeholder="..." onChange={(e: any) => setProjForm({...projForm, doc_link: e.target.value})} value={projForm.doc_link} />
-                    <div className="md:col-span-2 space-y-10">
-                      <div className="space-y-3"><label className="text-[10px] font-black text-zinc-600 uppercase tracking-[0.5em] ml-6 italic">Status</label><select className="w-full bg-[#1A1A1E] border border-white/10 rounded-[30px] py-6 px-10 text-xl text-white outline-none focus:border-blue-500 appearance-none font-bold italic shadow-inner" onChange={(e: any) => setProjForm({...projForm, category: e.target.value})} value={projForm.category}><option value="ongoing">Ongoing Real-Time</option><option value="course">Course Project</option><option value="papers">Papers Based</option></select></div>
-                      <FormArea label="Project Description" placeholder="..." onChange={(e: any) => setProjForm({...projForm, description: e.target.value})} value={projForm.description} />
-                      <FormArea label="Technical Logs" placeholder="..." onChange={(e: any) => setProjForm({...projForm, notes: e.target.value})} value={projForm.notes} />
-                    </div>
-                  </div>
-                )}
-                <button type="submit" disabled={submitting} className={`w-full py-8 rounded-[40px] font-black text-2xl text-white mt-6 shadow-2xl transition-all active:scale-95 flex items-center justify-center gap-4 ${activeTrack === 'publication' ? 'bg-emerald-600 shadow-emerald-500/20' : 'bg-blue-600 shadow-blue-500/20'}`}>{submitting ? <Loader2 className="animate-spin" /> : <Send size={24} strokeWidth={3} />}<span>Push to ONE Repository</span></button>
-              </form>
-            </motion.div>
-          )}
-        </AnimatePresence>
-        <div className="space-y-10 pb-20">
-          <div className="flex items-center justify-between px-2 lg:px-6"><h3 className="text-3xl lg:text-4xl font-black text-white italic uppercase tracking-tighter">Identity History.</h3><div className="h-[1px] flex-1 mx-4 lg:mx-12 bg-white/5" /></div>
-          {history.length === 0 ? (<div className="py-24 text-center border-2 border-dashed border-white/5 rounded-[40px] lg:rounded-[60px] bg-white/[0.01]"><Activity className="mx-auto text-zinc-800 mb-6" size={64} /><p className="text-zinc-600 font-black uppercase text-xl lg:text-2xl italic tracking-[0.2em]">Zero Historical Data.</p></div>) : (
-            <div className="grid grid-cols-1 gap-6">
-               {history.map((item, idx) => (
-                 <div key={idx} className="bg-white/[0.01] border border-white/5 rounded-[32px] lg:rounded-[48px] overflow-hidden group hover:border-emerald-500/10 transition-all">
-                    <div onClick={() => setExpandedId(expandedId === item.id ? null : item.id)} className="p-6 lg:p-10 flex items-center justify-between cursor-pointer hover:bg-white/[0.02]">
-                      <div className="flex items-center gap-6 lg:gap-10">
-                         <div className="text-center w-12 lg:w-16"><p className="text-[8px] lg:text-[10px] font-black uppercase text-zinc-600 mb-1 italic">{new Date(item.created_at).toLocaleString('default', { month: 'short' })}</p><h4 className="text-2xl lg:text-4xl font-black text-white leading-none tracking-tighter">{new Date(item.created_at).getDate()}</h4></div>
-                         <div className="h-12 lg:h-16 w-[1px] bg-white/5" />
-                         <div>
-                            <div className="flex items-center gap-3 mb-2"><span className={`text-[8px] lg:text-[10px] font-black uppercase tracking-widest px-2 lg:px-3 py-1 rounded-lg ${item.sys_cat === 'publication' ? 'text-emerald-500 bg-emerald-500/10' : 'text-blue-500 bg-blue-500/10'}`}>{item.pub_type || item.category}</span></div>
-                            <h4 className="text-xl lg:text-3xl font-bold text-white uppercase italic leading-tight tracking-tight">{item.title}</h4>
-                            <p className="text-[10px] lg:text-sm text-zinc-500 mt-2 font-bold uppercase italic">Supervisor: <span className="text-zinc-300">{item.mentor_name}</span></p>
-                         </div>
-                      </div>
-                      <ChevronDown className={`text-zinc-700 transition-all duration-500 ${expandedId === item.id ? 'rotate-180 text-emerald-500' : ''}`} size={24} />
-                    </div>
-                    <AnimatePresence>
-                      {expandedId === item.id && (
-                        <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="bg-black/20 border-t border-white/5">
-                          <div className="p-6 lg:p-12 grid grid-cols-1 md:grid-cols-2 gap-8 lg:gap-12">
-                            <div className="space-y-8"><HistoryDetail label="Executive Narrative" value={item.summary || item.description} /><HistoryDetail label="Assigned Mentor" value={`${item.mentor_name} (${item.mentor_email})`} />{item.notes && <HistoryDetail label="Technical Notes" value={item.notes} />}</div>
-                            <div className="space-y-8">
-                               <div className="bg-white/5 p-6 lg:p-8 rounded-3xl border border-white/5"><p className="text-[9px] lg:text-[10px] font-black uppercase text-zinc-600 mb-6 tracking-widest italic text-center">Repository Assets</p><div className="flex flex-wrap justify-center gap-4">{item.drive_link && <ArtifactLink label="Cloud Drive" url={item.drive_link} icon={<Globe size={14}/>} />}{item.github_link && <ArtifactLink label="Git Source" url={item.github_link} icon={<Code2 size={14}/>} />}{item.doc_link && <ArtifactLink label="Project Doc" url={item.doc_link} icon={<FileText size={14}/>} />}</div></div>
-                               {item.associated_project && <div className="bg-emerald-500/5 p-6 rounded-3xl border border-emerald-500/10 text-center"><p className="text-[8px] lg:text-[9px] font-black uppercase text-emerald-600 mb-1 italic">Linked Identity</p><p className="text-base lg:text-lg font-bold text-white italic">{item.associated_project}</p></div>}
-                            </div>
-                          </div>
-                        </motion.div>
-                      )}
-                    </AnimatePresence>
-                 </div>
-               ))}
-            </div>
-          )}
+              <button onClick={() => setShowVault(!showVault)} className="bg-white text-blue-700 px-12 py-6 rounded-[24px] font-black text-xl shadow-[0_10px_0_rgb(219,234,254),0_20px_40px_rgba(0,0,0,0.2)] hover:translate-y-[2px] hover:shadow-[0_8px_0_rgb(219,234,254)] active:translate-y-[8px] active:shadow-none transition-all flex items-center gap-4 group">
+                {showVault ? <ArrowUpCircle size={28} /> : <Plus size={28} strokeWidth={3} />} {showVault ? 'DISMISS VAULT' : 'INITIATE LOG'}
+              </button>
+           </motion.div>
         </div>
-        <AnimatePresence>
-          {showPassModal && (
-            <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 backdrop-blur-3xl bg-black/80">
-              <motion.div initial={{ scale: 0.95 }} animate={{ scale: 1 }} exit={{ scale: 0.95 }} className="bg-[#121214] border border-white/10 w-full max-w-xl rounded-[40px] lg:rounded-[60px] p-8 lg:p-12 shadow-2xl relative">
-                <button onClick={() => setShowPassModal(false)} className="absolute top-8 right-8 text-zinc-600 hover:text-white transition-all"><X size={32}/></button>
-                <h2 className="text-4xl lg:text-5xl font-black text-white mb-10 italic uppercase tracking-tighter">Reset Key.</h2>
-                <form onSubmit={handlePasswordUpdate} className="space-y-8"><FormInput label="New Key" type="password" onChange={(e:any) => setPassData({...passData, new: e.target.value})} icon={<Lock size={18}/>} /><FormInput label="Confirm Key" type="password" onChange={(e:any) => setPassData({...passData, confirm: e.target.value})} icon={<CheckCircle2 size={18}/>} /><button type="submit" disabled={updatingPass} className="w-full py-6 lg:py-8 bg-white text-black rounded-[30px] lg:rounded-[40px] font-black text-xl lg:text-2xl shadow-2xl active:scale-95 flex items-center justify-center gap-4">{updatingPass ? <Loader2 className="animate-spin" /> : 'Provision New Key'}</button></form>
+
+        <div className="p-6 lg:p-14 -mt-12 relative z-20">
+          
+          {/* 📥 3D BIFURCATED VAULT */}
+          <AnimatePresence>
+            {showVault && (
+              <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 30 }} className="bg-white border border-slate-200 rounded-[48px] p-8 lg:p-14 mb-14 shadow-2xl overflow-hidden">
+                <div className="flex bg-slate-100 p-2 rounded-2xl w-fit mb-12 border border-slate-200 shadow-inner">
+                  <button onClick={() => setActiveTrack('publication')} className={`px-10 py-3 rounded-xl font-black text-xs uppercase transition-all ${activeTrack === 'publication' ? 'bg-emerald-600 text-white shadow-lg' : 'text-slate-400'}`}> Publication</button>
+                  <button onClick={() => setActiveTrack('project')} className={`px-10 py-3 rounded-xl font-black text-xs uppercase transition-all ${activeTrack === 'project' ? 'bg-slate-900 text-white shadow-lg' : 'text-slate-400'}`}> Project</button>
+                </div>
+                <form onSubmit={handleSubmit} className="space-y-10">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+                    <FormInput label="Title" placeholder="Title of the research work..." onChange={(e: any) => activeTrack === 'publication' ? setPubForm({...pubForm, title: e.target.value}) : setProjForm({...projForm, title: e.target.value})} value={activeTrack === 'publication' ? pubForm.title : projForm.title} />
+                    
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                      <FormInput label="Mentor Name" placeholder="..." onChange={(e: any) => activeTrack === 'publication' ? setPubForm({...pubForm, mentor_name: e.target.value}) : setProjForm({...projForm, mentor_name: e.target.value})} value={activeTrack === 'publication' ? pubForm.mentor_name : projForm.mentor_name} />
+                      <FormInput label="Mentor Email ID" placeholder="..." onChange={(e: any) => activeTrack === 'publication' ? setPubForm({...pubForm, mentor_email: e.target.value}) : setProjForm({...projForm, mentor_email: e.target.value})} value={activeTrack === 'publication' ? pubForm.mentor_email : projForm.mentor_email} />
+                    </div>
+
+                    <FormInput label={activeTrack === 'publication' ? "Associated Project Link" : "GitHub Repository Link"} icon={activeTrack === 'publication' ? <Layers size={18}/> : <Code2 size={18}/>} placeholder="https://..." onChange={(e: any) => activeTrack === 'publication' ? setPubForm({...pubForm, associated_project: e.target.value}) : setProjForm({...projForm, github_link: e.target.value})} value={activeTrack === 'publication' ? pubForm.associated_project : projForm.github_link} />
+                    
+                    <FormInput label={activeTrack === 'publication' ? "Artifacts (Google Drive Link)" : "Project Document (Optional Link)"} icon={<Globe size={18}/>} placeholder="https://..." onChange={(e: any) => activeTrack === 'publication' ? setPubForm({...pubForm, drive_link: e.target.value}) : setProjForm({...projForm, doc_link: e.target.value})} value={activeTrack === 'publication' ? pubForm.drive_link : projForm.doc_link} />
+                    
+                    <div className="space-y-3 md:col-span-2">
+                        <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest ml-4 italic">Classification</label>
+                        <select className="w-full bg-slate-50 border border-slate-200 rounded-[24px] py-6 px-10 text-xl font-bold text-slate-900 outline-none focus:border-blue-600 shadow-inner appearance-none transition-all cursor-pointer" onChange={(e: any) => activeTrack === 'publication' ? setPubForm({...pubForm, pub_type: e.target.value}) : setProjForm({...projForm, category: e.target.value})}>
+                        {activeTrack === 'publication' ? (
+                            <><option value="journal">Journal</option><option value="patent">Patent</option><option value="conference">Conference</option></>
+                        ) : (
+                            <><option value="ongoing">Ongoing Real-time Projects</option><option value="course">Course Project</option><option value="papers">Papers</option></>
+                        )}
+                        </select>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    {activeTrack === 'publication' ? (
+                      <>
+                        <FormArea label="Summary (Brief)" placeholder="..." onChange={(e: any) => setPubForm({...pubForm, summary: e.target.value})} value={pubForm.summary} />
+                        <FormArea label="Details (Deep Narrative)" placeholder="..." onChange={(e: any) => setPubForm({...pubForm, details: e.target.value})} value={pubForm.details} />
+                      </>
+                    ) : (
+                      <>
+                        <FormArea label="Narrative (Description of Goal)" placeholder="..." onChange={(e: any) => setProjForm({...projForm, description: e.target.value})} value={projForm.description} />
+                        <FormArea label="Internal Log (Note / Status)" placeholder="..." onChange={(e: any) => setProjForm({...projForm, notes: e.target.value})} value={projForm.notes} />
+                      </>
+                    )}
+                  </div>
+
+                  <button type="submit" disabled={submitting} className={`w-full py-8 text-white rounded-[32px] font-black text-2xl active:translate-y-[12px] active:shadow-none transition-all flex items-center justify-center gap-6 shadow-2xl ${activeTrack === 'publication' ? 'bg-emerald-600 shadow-[0_12px_0_rgb(6,95,70),0_20px_40px_rgba(16,185,129,0.2)]' : 'bg-blue-700 shadow-[0_12px_0_rgb(30,58,138),0_20px_40px_rgba(37,99,235,0.2)]'}`}>
+                    {submitting ? <Loader2 className="animate-spin" /> : <Send size={32} strokeWidth={2.5} />}
+                    <span>SECURE TO ONE HUB</span>
+                  </button>
+                </form>
               </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* 📋 HISTORY FEED */}
+          <div className="bg-white border border-slate-200 rounded-[48px] overflow-hidden shadow-2xl">
+            <div className="p-8 lg:p-10 flex items-center justify-between border-b border-slate-50 bg-slate-50/50">
+               <h3 className="text-3xl font-black text-slate-900 uppercase tracking-tight italic">Activity History</h3>
+               <div className="relative w-full md:w-[400px]"><Search className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-300" size={24} /><input className="w-full bg-white border border-slate-200 rounded-3xl py-4 pl-16 pr-8 text-lg text-slate-900 outline-none focus:ring-4 focus:ring-blue-600/5 shadow-inner transition-all placeholder:text-slate-300 italic" placeholder="Filter feed..." onChange={(e) => setSearchTerm(e.target.value)} /></div>
             </div>
-          )}
-        </AnimatePresence>
+
+            <div className="p-6 lg:p-10 space-y-6">
+              {history.filter(i => i.title.toLowerCase().includes(searchTerm.toLowerCase())).map((item, idx) => (
+                  <div key={idx} className="bg-white border border-slate-100 rounded-[32px] overflow-hidden group hover:border-blue-300 transition-all hover:shadow-2xl">
+                    <div onClick={() => toggleExpand(item.id)} className="p-8 flex justify-between items-center cursor-pointer hover:bg-blue-50/30">
+                      <div className="flex items-center gap-8">
+                        <div className="text-center w-12 border-r border-slate-100 pr-10">
+                          <p className="text-[10px] font-black text-slate-400 uppercase leading-none mb-1 italic">{new Date(item.created_at).toLocaleString('default', { month: 'short' })}</p>
+                          <h4 className="text-3xl font-black text-slate-900 leading-none">{new Date(item.created_at).getDate()}</h4>
+                        </div>
+                        <div>
+                          <span className={`text-[11px] font-black uppercase tracking-[0.2em] px-3 py-1 rounded-full ${item.sys_cat === 'publication' ? 'text-emerald-600 bg-emerald-50' : 'text-blue-600 bg-blue-50'}`}>{item.pub_type || item.category}</span>
+                          <h4 className="text-2xl font-bold text-slate-900 mt-2 tracking-tight">{item.title}</h4>
+                          <p className="text-sm text-slate-400 font-bold uppercase mt-1 italic">Mentor: <span className="text-blue-600">{item.mentor_name}</span></p>
+                        </div>
+                      </div>
+                      <ChevronDown className={`text-slate-300 transition-all duration-500 ${expandedId === item.id ? 'rotate-180 text-blue-600 scale-125' : ''}`} size={32} />
+                    </div>
+                    <AnimatePresence>{expandedId === item.id && (
+                      <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="bg-slate-50 border-t border-slate-100 shadow-inner">
+                        <div className="p-10 grid grid-cols-1 md:grid-cols-2 gap-12">
+                          <div className="space-y-8">
+                            <DetailBox label="Narrative Description" value={item.summary || item.description} />
+                            {(item.details || item.notes) && <DetailBox label="Deep Details / Technical Log" value={item.details || item.notes} />}
+                          </div>
+                          <div className="space-y-8">
+                            <div className="bg-white p-8 rounded-[32px] border border-slate-200 shadow-sm"><p className="text-[10px] font-black text-slate-400 uppercase mb-6 text-center tracking-[0.3em] italic">Artifact Repository</p><div className="flex flex-wrap justify-center gap-4">{item.drive_link && <ArtifactLink label="Assets" icon={<Globe size={14}/>} url={item.drive_link} />}{item.github_link && <ArtifactLink label="Code" icon={<Code2 size={14}/>} url={item.github_link} />}{item.doc_link && <ArtifactLink label="Docs" icon={<FileText size={14}/>} url={item.doc_link} />}</div></div>
+                            <div className="bg-white border border-dashed border-slate-200 p-6 rounded-[24px] text-center shadow-inner"><p className="text-[9px] font-black text-slate-400 uppercase italic">Authenticated Signature</p><p className="text-xs font-bold text-slate-500 mt-1 truncate">{item.mentor_email}</p></div>
+                          </div>
+                        </div>
+                      </motion.div>
+                    )}</AnimatePresence>
+                  </div>
+                ))}
+            </div>
+          </div>
+        </div>
+
+        {/* 🔐 SECURITY MODAL */}
+        <AnimatePresence>{showPassModal && (<div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-slate-900/60 backdrop-blur-md"><motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="bg-white border border-slate-200 w-full max-w-xl rounded-[48px] p-12 lg:p-16 shadow-2xl relative"><button onClick={() => setShowPassModal(false)} className="absolute top-8 right-8 text-slate-300 hover:text-blue-600 transition-all"><X size={36}/></button><h2 className="text-4xl font-black text-slate-900 mb-10 tracking-tight uppercase italic">Security Center</h2><form onSubmit={handlePasswordUpdate} className="space-y-8"><FormInput label="New Access Key" type="password" onChange={(e:any) => setPassData({...passData, new: e.target.value})} icon={<Lock size={20}/>} /><FormInput label="Confirm New Key" type="password" onChange={(e:any) => setPassData({...passData, confirm: e.target.value})} icon={<CheckCircle2 size={20}/>} /><button type="submit" disabled={updatingPass} className="w-full py-8 bg-blue-600 text-white rounded-3xl font-black text-2xl shadow-xl transition-all active:scale-95">OVERWRITE SECURITY KEY</button></form></motion.div></div>)}</AnimatePresence>
       </main>
-      {showMobileSidebar && <div onClick={() => setShowMobileSidebar(false)} className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[65] lg:hidden" />}
+      {showMobileSidebar && <div onClick={() => setShowMobileSidebar(false)} className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[65] lg:hidden" />}
     </div>
   );
 }
 
-function HistoryDetail({ label, value }: any) { return (<div className="space-y-3"><p className="text-[9px] lg:text-[10px] font-black uppercase text-zinc-700 tracking-[0.2em] italic ml-4">{label}</p><div className="bg-white/5 border border-white/10 rounded-3xl p-6 text-xs lg:text-sm italic text-zinc-400 leading-relaxed shadow-inner">{value || "No data logged."}</div></div>); }
-function ArtifactLink({ label, url, icon }: any) { return (<a href={url} target="_blank" className="flex items-center gap-3 px-4 lg:px-6 py-3 bg-zinc-900 border border-white/5 rounded-2xl text-[8px] lg:text-[10px] font-black uppercase text-zinc-400 hover:bg-emerald-600 hover:text-white transition-all shadow-xl">{icon} {label} <ExternalLink size={12} className="opacity-50" /></a>); }
-function ProfileItem({ label, value, icon }: any) { return (<div className="bg-white/[0.02] border border-white/5 p-6 rounded-[32px] flex items-center gap-5 group hover:bg-white/[0.05] transition-all shadow-inner"><div className="w-10 h-10 lg:w-12 lg:h-12 rounded-2xl bg-zinc-900 flex items-center justify-center text-zinc-600 group-hover:text-emerald-500 transition-colors shadow-inner">{icon}</div><div className="min-w-0"><p className="text-[8px] lg:text-[9px] font-black uppercase text-zinc-700 mb-1.5 tracking-widest leading-none italic">{label}</p><p className="text-sm lg:text-base font-bold text-white truncate italic">{value || 'Syncing...'}</p></div></div>); }
-function FormInput({ label, placeholder, onChange, value, icon, type = "text" }: any) { return (<div className="space-y-4"><label className="text-[9px] lg:text-[10px] font-black text-zinc-600 uppercase tracking-[0.5em] ml-6 lg:ml-8 flex items-center gap-2 italic">{icon} {label}</label><input required type={type} className="w-full bg-white/5 border border-white/10 rounded-[30px] lg:rounded-[35px] py-5 lg:py-7 px-8 lg:px-12 text-lg lg:text-2xl text-white outline-none focus:border-white/20 transition-all placeholder:text-zinc-900 shadow-inner italic" placeholder={placeholder} onChange={onChange} value={value} /></div>); }
-function FormArea({ label, placeholder, onChange, value }: any) { return (<div className="space-y-4"><label className="text-[9px] lg:text-[10px] font-black text-zinc-600 uppercase tracking-[0.5em] ml-6 lg:ml-8 italic">{label}</label><textarea required className="w-full bg-white/5 border border-white/10 rounded-[35px] lg:rounded-[45px] py-6 lg:py-8 px-8 lg:px-12 text-lg lg:text-2xl text-white outline-none focus:border-white/20 transition-all placeholder:text-zinc-900 shadow-inner italic" rows={4} placeholder={placeholder} onChange={onChange} value={value} /></div>); }
+function ProfileItem({ label, value, icon }: any) { return (<div className="bg-slate-50 border border-slate-100 p-5 rounded-2xl flex items-center gap-5 group hover:bg-white hover:shadow-md transition-all shadow-inner"><div className="w-11 h-11 rounded-xl bg-white border border-slate-200 flex items-center justify-center text-slate-400 group-hover:text-blue-600 transition-colors shadow-sm">{icon}</div><div className="min-w-0"><p className="text-[9px] font-bold uppercase text-slate-400 mb-1 leading-none italic">{label}</p><p className="text-sm font-bold text-slate-900 truncate">{value || '...'}</p></div></div>); }
+function DetailBox({ label, value }: { label: string, value: string }) { return (<div className="space-y-3"><label className="text-[11px] font-black uppercase text-slate-400 tracking-widest ml-2 italic">{label}</label><div className="bg-white border border-slate-200 rounded-3xl p-6 text-base text-slate-600 leading-relaxed shadow-inner italic whitespace-pre-wrap">{value || 'No entry synced.'}</div></div>); }
+function ArtifactLink({ label, icon, url }: { label: string, icon: any, url: string }) { return (<a href={url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 px-6 py-3 bg-slate-100 border border-slate-200 rounded-2xl text-[10px] font-black uppercase text-slate-700 hover:bg-blue-600 hover:text-white active:scale-90 transition-all shadow-sm">{icon} {label} <ExternalLink size={12} className="opacity-50" /></a>); }
+function FormInput({ label, placeholder, onChange, icon, type = "text", value }: any) { return (<div className="space-y-3"><label className="text-[12px] font-black text-slate-400 uppercase tracking-widest ml-6 italic flex items-center gap-2">{icon} {label}</label><input required type={type} value={value} className="w-full bg-slate-50 border border-slate-200 rounded-[28px] py-6 px-10 text-xl font-bold text-slate-900 outline-none focus:border-blue-600 focus:bg-white shadow-inner transition-all placeholder:text-slate-300" placeholder={placeholder} onChange={onChange} /></div>); }
+function FormArea({ label, placeholder, onChange, value }: any) { return (<div className="space-y-3"><label className="text-[12px] font-black text-slate-400 uppercase tracking-widest ml-6 italic">{label}</label><textarea required className="w-full bg-slate-50 border border-slate-200 rounded-[40px] py-8 px-10 text-xl font-bold text-slate-900 outline-none focus:border-blue-600 focus:bg-white shadow-inner transition-all placeholder:text-zinc-300" rows={4} placeholder={placeholder} onChange={onChange} value={value} /></div>); }
